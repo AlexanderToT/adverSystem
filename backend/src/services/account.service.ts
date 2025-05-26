@@ -1,5 +1,4 @@
 import { eq, and, sql } from 'drizzle-orm';
-import { getDb } from '../db';
 import { schema } from '../db';
 import { hashPassword, comparePassword, generateJwt, verifyJwt, blacklistToken } from '../utils/auth';
 import { LoginInput, CreateUserInput, UpdateUserInput, ChangePasswordInput } from '../validations/account.validation';
@@ -29,8 +28,8 @@ export const loginUser = async (loginInput: LoginInput, c: Context) => {
   console.log('使用用户名:', loginInput.username);
   
   try {
-    // 为当前请求获取数据库连接
-    const db = getDb(c.env);
+    // 使用请求上下文中的数据库连接
+    const db = c.get('db');
     
     // 查找用户
     console.log('尝试从数据库查询用户...');
@@ -78,26 +77,20 @@ export const loginUser = async (loginInput: LoginInput, c: Context) => {
       roles
     }, c.env);
 
-    // 转换为前端需要的格式
-    const userWithRoles: UserWithRoles = {
-      id: user.id,
-      username: user.username,
-      displayName: user.displayName || undefined,
-      email: user.email || undefined,
-      loginType: user.loginType,
-      isActive: user.isActive,
-      roles: user.userRoles.map((ur: any) => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        description: ur.role.description || undefined
-      })),
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+    return {
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName || undefined,
+        email: user.email || undefined,
+        loginType: user.loginType,
+        isActive: user.isActive,
+        roles: roles,
+      }
     };
-
-    return { token, user: userWithRoles };
   } catch (error) {
-    console.error('登录服务发生错误:', error);
+    console.error('登录失败:', error);
     throw error;
   }
 };
@@ -125,7 +118,7 @@ export const logoutUser = async (token: string, jwtBlacklist?: KVNamespace) => {
 
 // 获取当前用户信息
 export const getCurrentUser = async (userId: string, c: Context): Promise<UserWithRoles> => {
-  const db = getDb(c.env);
+  const db = c.get('db');
   
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
@@ -161,7 +154,7 @@ export const getCurrentUser = async (userId: string, c: Context): Promise<UserWi
 
 // 用户列表查询（分页）
 export const getUsers = async (page: number, limit: number, c: Context, search?: string, role?: string) => {
-  const db = getDb(c.env);
+  const db = c.get('db');
   
   // 构建查询条件
   let users;
@@ -229,7 +222,7 @@ export const getUsers = async (page: number, limit: number, c: Context, search?:
 
 // 根据ID获取用户
 export const getUserById = async (id: string, c: Context): Promise<UserWithRoles> => {
-  const db = getDb(c.env);
+  const db = c.get('db');
   
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, id),
@@ -265,8 +258,8 @@ export const getUserById = async (id: string, c: Context): Promise<UserWithRoles
 
 // 创建用户
 export const createUser = async (userData: CreateUserInput, c: Context): Promise<UserWithRoles> => {
-  // 获取数据库连接
-  const db = getDb(c.env);
+  // 使用请求上下文中的数据库连接
+  const db = c.get('db');
   
   // 检查用户名是否已存在
   const existingUser = await db.query.users.findFirst({
@@ -281,7 +274,7 @@ export const createUser = async (userData: CreateUserInput, c: Context): Promise
   const passwordHash = await hashPassword(userData.password);
 
   // 创建用户事务
-  const result = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx: any) => {
     // 创建用户
     const [newUser] = await tx.insert(schema.users).values({
       username: userData.username,
@@ -339,8 +332,8 @@ export const createUser = async (userData: CreateUserInput, c: Context): Promise
 
 // 更新用户
 export const updateUser = async (id: string, userData: UpdateUserInput, c: Context): Promise<UserWithRoles> => {
-  // 获取数据库连接
-  const db = getDb(c.env);
+  // 使用请求上下文中的数据库连接
+  const db = c.get('db');
   
   // 检查用户是否存在
   const existingUser = await db.query.users.findFirst({
@@ -352,7 +345,7 @@ export const updateUser = async (id: string, userData: UpdateUserInput, c: Conte
   }
 
   // 更新用户事务
-  const result = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx: any) => {
     // 更新用户基本信息
     await tx.update(schema.users)
       .set({
@@ -416,8 +409,8 @@ export const updateUser = async (id: string, userData: UpdateUserInput, c: Conte
 
 // 删除用户
 export const deleteUser = async (id: string, c: Context): Promise<void> => {
-  // 获取数据库连接
-  const db = getDb(c.env);
+  // 使用请求上下文中的数据库连接
+  const db = c.get('db');
   
   // 检查用户是否存在
   const existingUser = await db.query.users.findFirst({
@@ -434,8 +427,8 @@ export const deleteUser = async (id: string, c: Context): Promise<void> => {
 
 // 修改密码
 export const changeUserPassword = async (id: string, { newPassword }: ChangePasswordInput, c: Context): Promise<void> => {
-  // 获取数据库连接
-  const db = getDb(c.env);
+  // 使用请求上下文中的数据库连接
+  const db = c.get('db');
   
   // 检查用户是否存在
   const existingUser = await db.query.users.findFirst({
@@ -460,13 +453,13 @@ export const changeUserPassword = async (id: string, { newPassword }: ChangePass
 
 // 获取所有角色列表
 export const getRoles = async (c: Context) => {
-  const db = getDb(c.env);
+  const db = c.get('db');
   
   const rolesList = await db.query.roles.findMany({
-    orderBy: (roles, { asc }) => [asc(roles.name)],
+    orderBy: (roles: any, { asc }: any) => [asc(roles.name)]
   });
 
-  return rolesList.map(role => ({
+  return rolesList.map((role: any) => ({
     id: role.id,
     name: role.name,
     description: role.description || undefined

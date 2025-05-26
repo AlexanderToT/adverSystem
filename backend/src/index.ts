@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { loggerMiddleware } from './middleware/logger.middleware';
 import { responseMiddleware } from './middleware/response.middleware';
+import { dbMiddleware } from './middleware/db.middleware';
 import apiRouter from './routes';
 
 // 创建Hono应用实例
@@ -12,6 +13,7 @@ const app = new Hono();
 app.use('*', logger());
 app.use('*', loggerMiddleware); // 添加自定义日志中间件
 app.use('*', responseMiddleware); // 添加响应拦截器中间件
+app.use('*', dbMiddleware); // 添加数据库连接管理中间件
 app.use('*', cors({
   origin: '*', // 生产环境应该设置为特定域名
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
