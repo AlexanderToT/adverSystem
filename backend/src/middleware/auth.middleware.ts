@@ -23,20 +23,20 @@ export const authenticate = async (c: Context, next: Next) => {
   const authHeader = c.req.header('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json(error('未授权访问', 401), 401);
+    return error(c, '未授权访问', 401, 401);
   }
   
   const token = authHeader.split(' ')[1];
   
   try {
     // 检查token是否在黑名单中
-    const jwtBlacklist = c.env.JWT_BLACKLIST;
-    if (jwtBlacklist && await isTokenBlacklisted(token, jwtBlacklist)) {
-      return c.json(error('令牌已失效', 401), 401);
+    const jwtBlacklist = c.env?.JWT_BLACKLIST;
+    if (await isTokenBlacklisted(token, jwtBlacklist)) {
+      return error(c, '令牌已失效', 401, 401);
     }
     
     // 验证token
-    const payload = await verifyJwt(token);
+    const payload = await verifyJwt(token, c.env);
     
     // 将用户信息添加到上下文中
     c.set('user', {
@@ -47,7 +47,7 @@ export const authenticate = async (c: Context, next: Next) => {
     
     await next();
   } catch (err) {
-    return c.json(error('无效的令牌', 401), 401);
+    return error(c, '无效的令牌', 401, 401);
   }
 };
 
@@ -57,14 +57,14 @@ export const authorize = (allowedRoles: string[]) => {
     const user = c.get('user');
     
     if (!user) {
-      return c.json(error('未授权访问', 401), 401);
+      return error(c, '未授权访问', 401, 401);
     }
     
     // 检查用户是否有所需角色
     const hasRole = user.roles.some((role: string) => allowedRoles.includes(role));
     
     if (!hasRole) {
-      return c.json(error('没有权限执行此操作', 403), 403);
+      return error(c, '没有权限执行此操作', 403, 403);
     }
     
     await next();

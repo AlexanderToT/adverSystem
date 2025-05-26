@@ -1,9 +1,10 @@
 import { eq, and, sql } from 'drizzle-orm';
-import { db } from '../db';
+import { getDb } from '../db';
 import { schema } from '../db';
 import { hashPassword, comparePassword, generateJwt, verifyJwt, blacklistToken } from '../utils/auth';
 import { LoginInput, CreateUserInput, UpdateUserInput, ChangePasswordInput } from '../validations/account.validation';
 import { KVNamespace } from '@cloudflare/workers-types';
+import { Context } from 'hono';
 
 // 用户类型（包含角色）
 export interface UserWithRoles {
@@ -23,65 +24,86 @@ export interface UserWithRoles {
 }
 
 // 登录服务
-export const loginUser = async (loginInput: LoginInput) => {
-  // 查找用户
-  const user = await (db.query as any).users.findFirst({
-    where: eq(schema.users.username, loginInput.username),
-    with: {
-      userRoles: {
-        with: {
-          role: true
+export const loginUser = async (loginInput: LoginInput, c: Context) => {
+  console.log('登录服务: 开始处理登录请求...');
+  console.log('使用用户名:', loginInput.username);
+  
+  try {
+    // 为当前请求获取数据库连接
+    const db = getDb(c.env);
+    
+    // 查找用户
+    console.log('尝试从数据库查询用户...');
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.username, loginInput.username),
+      with: {
+        userRoles: {
+          with: {
+            role: true
+          }
         }
       }
+    });
+
+    console.log('数据库查询结果:', user ? '用户存在' : '用户不存在');
+
+    if (!user) {
+      throw new Error('用户名或密码错误');
     }
-  });
 
-  if (!user) {
-    throw new Error('用户名或密码错误');
+    if (!user.isActive) {
+      throw new Error('账号已被禁用');
+    }
+
+    // 验证密码
+    console.log('开始验证密码...');
+    console.log('数据库中的密码哈希:', user.passwordHash);
+    const passwordToVerify = loginInput.password;
+    console.log('用户输入的密码:', passwordToVerify);
+    
+    const isPasswordValid = await comparePassword(passwordToVerify, user.passwordHash);
+    console.log('密码验证结果:', isPasswordValid ? '密码正确' : '密码错误');
+    
+    if (!isPasswordValid) {
+      throw new Error('用户名或密码错误');
+    }
+
+    // 提取角色
+    const roles = user.userRoles.map((ur: any) => ur.role.name);
+
+    // 生成JWT
+    const token = await generateJwt({
+      sub: user.id,
+      username: user.username,
+      roles
+    }, c.env);
+
+    // 转换为前端需要的格式
+    const userWithRoles: UserWithRoles = {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName || undefined,
+      email: user.email || undefined,
+      loginType: user.loginType,
+      isActive: user.isActive,
+      roles: user.userRoles.map((ur: any) => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        description: ur.role.description || undefined
+      })),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    return { token, user: userWithRoles };
+  } catch (error) {
+    console.error('登录服务发生错误:', error);
+    throw error;
   }
-
-  if (!user.isActive) {
-    throw new Error('账号已被禁用');
-  }
-
-  // 验证密码
-  const isPasswordValid = await comparePassword(loginInput.password, user.passwordHash);
-  if (!isPasswordValid) {
-    throw new Error('用户名或密码错误');
-  }
-
-  // 提取角色
-  const roles = user.userRoles.map((ur: any) => ur.role.name);
-
-  // 生成JWT
-  const token = await generateJwt({
-    sub: user.id,
-    username: user.username,
-    roles
-  });
-
-  // 转换为前端需要的格式
-  const userWithRoles: UserWithRoles = {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName || undefined,
-    email: user.email || undefined,
-    loginType: user.loginType,
-    isActive: user.isActive,
-    roles: user.userRoles.map((ur: any) => ({
-      id: ur.role.id,
-      name: ur.role.name,
-      description: ur.role.description || undefined
-    })),
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt
-  };
-
-  return { token, user: userWithRoles };
 };
 
 // 登出服务
-export const logoutUser = async (token: string, jwtBlacklist: KVNamespace) => {
+export const logoutUser = async (token: string, jwtBlacklist?: KVNamespace) => {
   // 解析JWT获取过期时间，计算剩余有效期
   try {
     const payload = await verifyJwt(token);
@@ -89,8 +111,12 @@ export const logoutUser = async (token: string, jwtBlacklist: KVNamespace) => {
     const exp = payload.exp || now;
     const ttl = Math.max(0, exp - now);
     
-    // 将token加入黑名单
-    await blacklistToken(token, ttl, jwtBlacklist);
+    // 将token加入黑名单（如果黑名单服务可用）
+    if (jwtBlacklist) {
+      await blacklistToken(token, ttl, jwtBlacklist);
+    } else {
+      console.warn('JWT黑名单服务不可用，无法记录已登出的令牌');
+    }
   } catch (error) {
     // 如果token已经无效，不需要加入黑名单
     console.error('登出时发生错误:', error);
@@ -98,8 +124,10 @@ export const logoutUser = async (token: string, jwtBlacklist: KVNamespace) => {
 };
 
 // 获取当前用户信息
-export const getCurrentUser = async (userId: string): Promise<UserWithRoles> => {
-  const user = await (db.query as any).users.findFirst({
+export const getCurrentUser = async (userId: string, c: Context): Promise<UserWithRoles> => {
+  const db = getDb(c.env);
+  
+  const user = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
     with: {
       userRoles: {
@@ -132,28 +160,16 @@ export const getCurrentUser = async (userId: string): Promise<UserWithRoles> => 
 };
 
 // 用户列表查询（分页）
-export const getUsers = async (page: number, limit: number, search?: string, roleFilter?: string) => {
+export const getUsers = async (page: number, limit: number, c: Context, search?: string, role?: string) => {
+  const db = getDb(c.env);
+  
   // 构建查询条件
-  let query = (db.query as any).users.findMany({
-    with: {
-      userRoles: {
-        with: {
-          role: true
-        }
-      }
-    },
-    limit,
-    offset: (page - 1) * limit,
-    orderBy: schema.users.createdAt
-  });
-
-  // 搜索条件
-  // 注意：这里简化了实现，实际应该使用更复杂的查询条件
+  let users;
+  
   if (search) {
-    query = (db.query as any).users.findMany({
-      where: (users: any) => {
-        return eq(users.username, search); // 简化版，实际应该使用like或其他匹配方式
-      },
+    // 搜索条件
+    users = await db.query.users.findMany({
+      where: eq(schema.users.username, search), // 简化版，实际应该使用like或其他匹配方式
       with: {
         userRoles: {
           with: {
@@ -163,18 +179,21 @@ export const getUsers = async (page: number, limit: number, search?: string, rol
       },
       limit,
       offset: (page - 1) * limit,
-      orderBy: schema.users.createdAt
+    });
+  } else {
+    // 没有搜索条件
+    users = await db.query.users.findMany({
+      with: {
+        userRoles: {
+          with: {
+            role: true
+          }
+        }
+      },
+      limit,
+      offset: (page - 1) * limit,
     });
   }
-
-  // 角色过滤
-  if (roleFilter) {
-    // 这里需要更复杂的查询，简化实现
-    // 实际应该使用join或子查询
-  }
-
-  // 执行查询
-  const users = await query;
 
   // 获取总数
   const totalCount = await db.select({ count: sql`count(*)` }).from(schema.users);
@@ -209,8 +228,10 @@ export const getUsers = async (page: number, limit: number, search?: string, rol
 };
 
 // 根据ID获取用户
-export const getUserById = async (id: string): Promise<UserWithRoles> => {
-  const user = await (db.query as any).users.findFirst({
+export const getUserById = async (id: string, c: Context): Promise<UserWithRoles> => {
+  const db = getDb(c.env);
+  
+  const user = await db.query.users.findFirst({
     where: eq(schema.users.id, id),
     with: {
       userRoles: {
@@ -243,9 +264,12 @@ export const getUserById = async (id: string): Promise<UserWithRoles> => {
 };
 
 // 创建用户
-export const createUser = async (userData: CreateUserInput): Promise<UserWithRoles> => {
+export const createUser = async (userData: CreateUserInput, c: Context): Promise<UserWithRoles> => {
+  // 获取数据库连接
+  const db = getDb(c.env);
+  
   // 检查用户名是否已存在
-  const existingUser = await (db.query as any).users.findFirst({
+  const existingUser = await db.query.users.findFirst({
     where: eq(schema.users.username, userData.username)
   });
 
@@ -314,9 +338,12 @@ export const createUser = async (userData: CreateUserInput): Promise<UserWithRol
 };
 
 // 更新用户
-export const updateUser = async (id: string, userData: UpdateUserInput): Promise<UserWithRoles> => {
+export const updateUser = async (id: string, userData: UpdateUserInput, c: Context): Promise<UserWithRoles> => {
+  // 获取数据库连接
+  const db = getDb(c.env);
+  
   // 检查用户是否存在
-  const existingUser = await (db.query as any).users.findFirst({
+  const existingUser = await db.query.users.findFirst({
     where: eq(schema.users.id, id)
   });
 
@@ -388,9 +415,12 @@ export const updateUser = async (id: string, userData: UpdateUserInput): Promise
 };
 
 // 删除用户
-export const deleteUser = async (id: string): Promise<void> => {
+export const deleteUser = async (id: string, c: Context): Promise<void> => {
+  // 获取数据库连接
+  const db = getDb(c.env);
+  
   // 检查用户是否存在
-  const existingUser = await (db.query as any).users.findFirst({
+  const existingUser = await db.query.users.findFirst({
     where: eq(schema.users.id, id)
   });
 
@@ -403,9 +433,12 @@ export const deleteUser = async (id: string): Promise<void> => {
 };
 
 // 修改密码
-export const changeUserPassword = async (id: string, { newPassword }: ChangePasswordInput): Promise<void> => {
+export const changeUserPassword = async (id: string, { newPassword }: ChangePasswordInput, c: Context): Promise<void> => {
+  // 获取数据库连接
+  const db = getDb(c.env);
+  
   // 检查用户是否存在
-  const existingUser = await (db.query as any).users.findFirst({
+  const existingUser = await db.query.users.findFirst({
     where: eq(schema.users.id, id)
   });
 

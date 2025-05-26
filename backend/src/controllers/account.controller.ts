@@ -6,11 +6,25 @@ import { success, error } from '../utils/response';
 // 登录处理
 export const loginHandler = async (c: Context) => {
   try {
+    console.log('开始登录处理...');
     const input = await c.req.json();
+    console.log('接收到登录请求数据:', JSON.stringify(input));
+    
     const validatedInput = loginSchema.parse(input);
-    const result = await accountService.loginUser(validatedInput);
-    return success(c, result, '登录成功');
+    console.log('数据验证通过:', JSON.stringify(validatedInput));
+    
+    try {
+      console.log('尝试从数据库获取用户信息...');
+      const result = await accountService.loginUser(validatedInput, c);
+      console.log('登录成功，返回结果');
+      return success(c, result, '登录成功');
+    } catch (dbErr: any) {
+      console.error('数据库操作失败:', dbErr);
+      console.error('错误堆栈:', dbErr.stack);
+      return error(c, `数据库错误: ${dbErr.message}`, 500, 500);
+    }
   } catch (err: any) {
+    console.error('登录处理错误:', err);
     return error(c, err.message || '登录失败', 400, 400);
   }
 };
@@ -40,7 +54,7 @@ export const getCurrentUserHandler = async (c: Context) => {
       return error(c, '未授权访问', 401, 401);
     }
     
-    const userInfo = await accountService.getCurrentUser(user.id);
+    const userInfo = await accountService.getCurrentUser(user.id, c);
     return success(c, userInfo, '获取用户信息成功');
   } catch (err: any) {
     return error(c, err.message || '获取用户信息失败', 400, 400);
@@ -55,6 +69,7 @@ export const getUsersHandler = async (c: Context) => {
     const users = await accountService.getUsers(
       parseInt(page, 10),
       parseInt(limit, 10),
+      c,
       search,
       role
     );
@@ -69,7 +84,7 @@ export const getUsersHandler = async (c: Context) => {
 export const getUserByIdHandler = async (c: Context) => {
   try {
     const id = c.req.param('id');
-    const user = await accountService.getUserById(id);
+    const user = await accountService.getUserById(id, c);
     return success(c, user, '获取用户信息成功');
   } catch (err: any) {
     return error(c, err.message || '获取用户信息失败', 400, 400);
@@ -81,7 +96,7 @@ export const createUserHandler = async (c: Context) => {
   try {
     const input = await c.req.json();
     const validatedInput = createUserSchema.parse(input);
-    const newUser = await accountService.createUser(validatedInput);
+    const newUser = await accountService.createUser(validatedInput, c);
     return success(c, newUser, '创建用户成功', 200, 201);
   } catch (err: any) {
     return error(c, err.message || '创建用户失败', 400, 400);
@@ -94,7 +109,7 @@ export const updateUserHandler = async (c: Context) => {
     const id = c.req.param('id');
     const input = await c.req.json();
     const validatedInput = updateUserSchema.parse(input);
-    const updatedUser = await accountService.updateUser(id, validatedInput);
+    const updatedUser = await accountService.updateUser(id, validatedInput, c);
     return success(c, updatedUser, '更新用户成功');
   } catch (err: any) {
     return error(c, err.message || '更新用户失败', 400, 400);
@@ -105,7 +120,7 @@ export const updateUserHandler = async (c: Context) => {
 export const deleteUserHandler = async (c: Context) => {
   try {
     const id = c.req.param('id');
-    await accountService.deleteUser(id);
+    await accountService.deleteUser(id, c);
     return success(c, null, '用户删除成功');
   } catch (err: any) {
     return error(c, err.message || '删除用户失败', 400, 400);
@@ -118,7 +133,7 @@ export const changeUserPasswordHandler = async (c: Context) => {
     const id = c.req.param('id');
     const input = await c.req.json();
     const validatedInput = changePasswordSchema.parse(input);
-    await accountService.changeUserPassword(id, validatedInput);
+    await accountService.changeUserPassword(id, validatedInput, c);
     return success(c, null, '密码修改成功');
   } catch (err: any) {
     return error(c, err.message || '修改密码失败', 400, 400);
