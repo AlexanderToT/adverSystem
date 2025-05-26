@@ -130,13 +130,30 @@ export const deleteUserHandler = async (c: Context) => {
 // 修改用户密码
 export const changeUserPasswordHandler = async (c: Context) => {
   try {
-    const id = c.req.param('id');
+    const targetUserId = c.req.param('id'); 
     const input = await c.req.json();
     const validatedInput = changePasswordSchema.parse(input);
-    await accountService.changeUserPassword(id, validatedInput, c);
+
+    const currentUser = c.get('user'); 
+
+    if (!currentUser) {
+      return error(c, '未授权访问 - 需要登录', 401, 401);
+    }
+
+    const isSuperAdmin = currentUser.roles && currentUser.roles.some((role: any) => role === 'super_admin' || (typeof role === 'object' && role.name === 'super_admin'));
+
+    if (currentUser.id !== targetUserId && !isSuperAdmin) {
+      return error(c, '禁止访问 - 您没有权限修改此用户的密码', 500, 200);
+    }
+
+    await accountService.changeUserPassword(targetUserId, validatedInput, c);
     return success(c, null, '密码修改成功');
   } catch (err: any) {
-    return error(c, err.message || '修改密码失败', 400, 400);
+    if (err.name === 'ZodError') {
+      const validationErrors = err.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join('; ');
+      return error(c, `请求参数验证失败: ${validationErrors}`, 400, 400);
+    }
+    return error(c, err.message || '修改密码失败', 500, 500);
   }
 };
 

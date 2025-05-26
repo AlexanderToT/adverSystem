@@ -104,11 +104,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   // 用户下拉菜单
   const userMenuItems: MenuProps['items'] = [
     {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '账号设置',
-    },
-    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',

@@ -70,7 +70,7 @@ export const auth = (options?: { allowedRoles?: string[] }) => {
         
         if (!hasRole) {
           console.log(`[Auth-Unified] 用户没有所需权限`);
-          return error(c, '没有权限执行此操作', 403, 403);
+          return error(c, '没有权限执行此操作', 500, 200);
         }
         
         console.log(`[Auth-Unified] 授权成功`);

@@ -53,7 +53,7 @@ export const deleteUser = (id: string): Promise<ApiResponse<null>> => {
 
 // 修改用户密码
 export const changePassword = (id: string, data: ChangePasswordRequest): Promise<ApiResponse<null>> => {
-  return put<ApiResponse<null>>(`/auth/users/${id}/change-password`, data);
+  return put<ApiResponse<null>>(`/auth/users/change-password/${id}`, data);
 };
 
 // 获取角色列表

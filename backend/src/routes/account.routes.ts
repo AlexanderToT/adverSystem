@@ -46,7 +46,7 @@ accountRouter.delete('/users/:id',
 );
 
 // 修改密码 (仅超级管理员或用户自己)
-accountRouter.put('/users/:id/change-password', 
+accountRouter.put('/users/change-password/:id', 
   auth(), // 简化版：先只验证身份，在控制器中处理权限
   zValidator('json', changePasswordSchema), 
   accountController.changeUserPasswordHandler
