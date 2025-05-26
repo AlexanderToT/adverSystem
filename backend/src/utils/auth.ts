@@ -147,12 +147,16 @@ export const generateJwt = async (payload: Omit<JwtPayload, 'iat' | 'exp'>, env?
 // 验证JWT
 export const verifyJwt = async (token: string, env?: any): Promise<JwtPayload> => {
   const jwtSecret = env?.JWT_SECRET || DEFAULT_JWT_SECRET;
+  console.log(`[JWT] 使用的JWT密钥: ${jwtSecret === DEFAULT_JWT_SECRET ? '默认密钥' : '环境变量密钥'}`);
+  
   const secret = new TextEncoder().encode(jwtSecret);
   
   try {
     const { payload } = await jwtVerify(token, secret);
+    console.log(`[JWT] 验证成功，载荷: ${JSON.stringify(payload)}`);
     return payload as unknown as JwtPayload;
   } catch (error) {
+    console.log(`[JWT] 验证失败:`, error);
     throw new Error('Invalid token');
   }
 };

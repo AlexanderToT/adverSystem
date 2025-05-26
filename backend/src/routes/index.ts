@@ -6,11 +6,8 @@ import accountRouter from './account.routes';
 // 创建API路由
 const apiRouter = new Hono();
 
-// 注册各模块路由
-apiRouter.route('/auth', accountRouter);
-apiRouter.route('/users', accountRouter);
-// apiRouter.route('/applications', applicationRouter); // 待实现
-// apiRouter.route('/advertisements', advertisementRouter); // 待实现
+// 注册账号相关路由
+apiRouter.route('/auth', accountRouter); // 认证相关端点 (登录/登出/获取当前用户)
 
 // 健康检查端点
 apiRouter.get('/health', (c) => {

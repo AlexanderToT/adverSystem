@@ -28,35 +28,35 @@ export const logout = (): Promise<ApiResponse<null>> => {
 
 // 获取用户列表（分页）
 export const getUsers = (params?: any): Promise<ApiResponse<PaginatedResponse<User>>> => {
-  return get<ApiResponse<PaginatedResponse<User>>>('/users/usersList', params);
+  return get<ApiResponse<PaginatedResponse<User>>>('/auth/usersList', params);
 };
 
 // 获取用户详情
 export const getUserById = (id: string): Promise<ApiResponse<User>> => {
-  return get<ApiResponse<User>>(`/users/users/${id}`);
+  return get<ApiResponse<User>>(`/auth/users/${id}`);
 };
 
 // 创建用户
 export const createUser = (data: CreateUserRequest): Promise<ApiResponse<User>> => {
-  return post<ApiResponse<User>>('/users/addUser', data);
+  return post<ApiResponse<User>>('/auth/addUser', data);
 };
 
 // 更新用户
 export const updateUser = (id: string, data: UpdateUserRequest): Promise<ApiResponse<User>> => {
-  return put<ApiResponse<User>>(`/users/updateUsers/${id}`, data);
+  return put<ApiResponse<User>>(`/auth/updateUsers/${id}`, data);
 };
 
 // 删除用户
 export const deleteUser = (id: string): Promise<ApiResponse<null>> => {
-  return del<ApiResponse<null>>(`/users/${id}`);
+  return del<ApiResponse<null>>(`/auth/users/${id}`);
 };
 
 // 修改用户密码
 export const changePassword = (id: string, data: ChangePasswordRequest): Promise<ApiResponse<null>> => {
-  return put<ApiResponse<null>>(`/users/${id}/change-password`, data);
+  return put<ApiResponse<null>>(`/auth/users/${id}/change-password`, data);
 };
 
 // 获取角色列表
 export const getRoles = (): Promise<ApiResponse<Role[]>> => {
-  return get<ApiResponse<Role[]>>('users/roles');
+  return get<ApiResponse<Role[]>>('/auth/roles');
 };
