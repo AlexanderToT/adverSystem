@@ -18,7 +18,7 @@ accountRouter.get('/me', authenticate, accountController.getCurrentUserHandler);
 accountRouter.use('/users/*', authenticate);
 
 // 获取用户列表 (所有认证用户都可以查看)
-accountRouter.get('/users', accountController.getUsersHandler);
+accountRouter.get('/usersList', accountController.getUsersHandler);
 
 // 创建用户 (仅超级管理员)
 accountRouter.post('/users', 

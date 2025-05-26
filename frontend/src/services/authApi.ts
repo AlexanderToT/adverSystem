@@ -28,12 +28,12 @@ export const logout = (): Promise<ApiResponse<null>> => {
 
 // 获取用户列表（分页）
 export const getUsers = (params?: any): Promise<ApiResponse<PaginatedResponse<User>>> => {
-  return get<ApiResponse<PaginatedResponse<User>>>('/users', params);
+  return get<ApiResponse<PaginatedResponse<User>>>('/users/usersList', params);
 };
 
 // 获取用户详情
 export const getUserById = (id: string): Promise<ApiResponse<User>> => {
-  return get<ApiResponse<User>>(`/users/${id}`);
+  return get<ApiResponse<User>>(`/users/users/${id}`);
 };
 
 // 创建用户
