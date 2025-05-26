@@ -9,9 +9,9 @@ export const loginHandler = async (c: Context) => {
     const input = await c.req.json();
     const validatedInput = loginSchema.parse(input);
     const result = await accountService.loginUser(validatedInput);
-    return c.json(success(result));
+    return success(c, result, '登录成功');
   } catch (err: any) {
-    return c.json(error(err.message || '登录失败'), 400);
+    return error(c, err.message || '登录失败', 400, 400);
   }
 };
 
@@ -20,15 +20,15 @@ export const logoutHandler = async (c: Context) => {
   try {
     const authHeader = c.req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json(error('未提供有效的认证令牌'), 400);
+      return error(c, '未提供有效的认证令牌', 400, 400);
     }
     
     const token = authHeader.split(' ')[1];
     await accountService.logoutUser(token, c.env.JWT_BLACKLIST);
     
-    return c.json(success(null, '登出成功'));
+    return success(c, null, '登出成功');
   } catch (err: any) {
-    return c.json(error(err.message || '登出失败'), 400);
+    return error(c, err.message || '登出失败', 400, 400);
   }
 };
 
@@ -37,13 +37,13 @@ export const getCurrentUserHandler = async (c: Context) => {
   try {
     const user = c.get('user');
     if (!user) {
-      return c.json(error('未授权访问'), 401);
+      return error(c, '未授权访问', 401, 401);
     }
     
     const userInfo = await accountService.getCurrentUser(user.id);
-    return c.json(success(userInfo));
+    return success(c, userInfo, '获取用户信息成功');
   } catch (err: any) {
-    return c.json(error(err.message || '获取用户信息失败'), 400);
+    return error(c, err.message || '获取用户信息失败', 400, 400);
   }
 };
 
@@ -59,9 +59,9 @@ export const getUsersHandler = async (c: Context) => {
       role
     );
     
-    return c.json(success(users));
+    return success(c, users, '获取用户列表成功');
   } catch (err: any) {
-    return c.json(error(err.message || '获取用户列表失败'), 400);
+    return error(c, err.message || '获取用户列表失败', 400, 400);
   }
 };
 
@@ -70,9 +70,9 @@ export const getUserByIdHandler = async (c: Context) => {
   try {
     const id = c.req.param('id');
     const user = await accountService.getUserById(id);
-    return c.json(success(user));
+    return success(c, user, '获取用户信息成功');
   } catch (err: any) {
-    return c.json(error(err.message || '获取用户信息失败'), 400);
+    return error(c, err.message || '获取用户信息失败', 400, 400);
   }
 };
 
@@ -82,9 +82,9 @@ export const createUserHandler = async (c: Context) => {
     const input = await c.req.json();
     const validatedInput = createUserSchema.parse(input);
     const newUser = await accountService.createUser(validatedInput);
-    return c.json(success(newUser), 201);
+    return success(c, newUser, '创建用户成功', 200, 201);
   } catch (err: any) {
-    return c.json(error(err.message || '创建用户失败'), 400);
+    return error(c, err.message || '创建用户失败', 400, 400);
   }
 };
 
@@ -95,9 +95,9 @@ export const updateUserHandler = async (c: Context) => {
     const input = await c.req.json();
     const validatedInput = updateUserSchema.parse(input);
     const updatedUser = await accountService.updateUser(id, validatedInput);
-    return c.json(success(updatedUser));
+    return success(c, updatedUser, '更新用户成功');
   } catch (err: any) {
-    return c.json(error(err.message || '更新用户失败'), 400);
+    return error(c, err.message || '更新用户失败', 400, 400);
   }
 };
 
@@ -106,9 +106,9 @@ export const deleteUserHandler = async (c: Context) => {
   try {
     const id = c.req.param('id');
     await accountService.deleteUser(id);
-    return c.json(success(null, '用户删除成功'));
+    return success(c, null, '用户删除成功');
   } catch (err: any) {
-    return c.json(error(err.message || '删除用户失败'), 400);
+    return error(c, err.message || '删除用户失败', 400, 400);
   }
 };
 
@@ -119,8 +119,8 @@ export const changeUserPasswordHandler = async (c: Context) => {
     const input = await c.req.json();
     const validatedInput = changePasswordSchema.parse(input);
     await accountService.changeUserPassword(id, validatedInput);
-    return c.json(success(null, '密码修改成功'));
+    return success(c, null, '密码修改成功');
   } catch (err: any) {
-    return c.json(error(err.message || '修改密码失败'), 400);
+    return error(c, err.message || '修改密码失败', 400, 400);
   }
 }; 
