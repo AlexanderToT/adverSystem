@@ -1,225 +1,215 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { User, CreateUserRequest, UpdateUserRequest, PaginationParams, PaginatedResponse } from '@/types/auth';
-import * as accountApi from '@/services/accountApi';
-import { ApiError } from '@/types/api';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { 
+  getUsers, 
+  getUserById, 
+  createUser, 
+  updateUser, 
+  deleteUser,
+  changePassword 
+} from '@/services/authApi';
+import { User, PaginatedResponse, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest } from '@/types';
 
-// 定义用户状态类型
-interface UserState {
+interface UsersState {
   users: User[];
-  selectedUser: User | null;
+  currentUser: User | null;
   pagination: {
+    current: number;
+    pageSize: number;
     total: number;
-    currentPage: number;
-    totalPages: number;
-    limit: number;
-  } | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  };
+  loading: boolean;
   error: string | null;
 }
 
-// 初始状态
-const initialState: UserState = {
+const initialState: UsersState = {
   users: [],
-  selectedUser: null,
-  pagination: null,
-  status: 'idle',
+  currentUser: null,
+  pagination: {
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  },
+  loading: false,
   error: null,
 };
 
-// 异步action：获取用户列表
-export const fetchUsers = createAsyncThunk<
-  PaginatedResponse<User>,
-  PaginationParams,
-  { rejectValue: ApiError }
->('users/fetchUsers', async (params, { rejectWithValue }) => {
-  try {
-    return await accountApi.getUsers(params);
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 获取用户列表
+export const fetchUsers = createAsyncThunk(
+  'users/fetchUsers',
+  async (params: { page?: number; limit?: number; search?: string } = {}, { rejectWithValue }) => {
+    try {
+      const response = await getUsers(params);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '获取用户列表失败');
+    }
   }
-});
+);
 
-// 异步action：根据ID获取用户
-export const fetchUserById = createAsyncThunk<
-  User,
-  string,
-  { rejectValue: ApiError }
->('users/fetchUserById', async (userId, { rejectWithValue }) => {
-  try {
-    return await accountApi.getUserById(userId);
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 获取用户详情
+export const fetchUserById = createAsyncThunk(
+  'users/fetchUserById',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await getUserById(id);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '获取用户详情失败');
+    }
   }
-});
+);
 
-// 异步action：创建用户
-export const createUser = createAsyncThunk<
-  User,
-  CreateUserRequest,
-  { rejectValue: ApiError }
->('users/createUser', async (userData, { rejectWithValue }) => {
-  try {
-    return await accountApi.createUser(userData);
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 创建用户
+export const addUser = createAsyncThunk(
+  'users/addUser',
+  async (userData: CreateUserRequest, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await createUser(userData);
+      // 创建成功后重新获取用户列表
+      dispatch(fetchUsers({}));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '创建用户失败');
+    }
   }
-});
+);
 
-// 异步action：更新用户
-export const updateUser = createAsyncThunk<
-  User,
-  { id: string; userData: UpdateUserRequest },
-  { rejectValue: ApiError }
->('users/updateUser', async ({ id, userData }, { rejectWithValue }) => {
-  try {
-    return await accountApi.updateUser(id, userData);
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 更新用户
+export const editUser = createAsyncThunk(
+  'users/editUser',
+  async ({ id, data }: { id: string; data: UpdateUserRequest }, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await updateUser(id, data);
+      // 更新成功后重新获取用户列表
+      dispatch(fetchUsers({}));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '更新用户失败');
+    }
   }
-});
+);
 
-// 异步action：删除用户
-export const deleteUser = createAsyncThunk<
-  string,
-  string,
-  { rejectValue: ApiError }
->('users/deleteUser', async (userId, { rejectWithValue }) => {
-  try {
-    await accountApi.deleteUser(userId);
-    return userId; // 返回被删除的用户ID，用于从Redux状态中移除
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 删除用户
+export const removeUser = createAsyncThunk(
+  'users/removeUser',
+  async (id: string, { rejectWithValue, dispatch }) => {
+    try {
+      await deleteUser(id);
+      // 删除成功后重新获取用户列表
+      dispatch(fetchUsers({}));
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '删除用户失败');
+    }
   }
-});
+);
 
-// 异步action：修改用户密码
-export const changeUserPassword = createAsyncThunk<
-  void,
-  { id: string; newPassword: string },
-  { rejectValue: ApiError }
->('users/changePassword', async ({ id, newPassword }, { rejectWithValue }) => {
-  try {
-    await accountApi.changeUserPassword(id, { newPassword });
-  } catch (error) {
-    return rejectWithValue(error as ApiError);
+// 异步Thunk: 修改密码
+export const modifyPassword = createAsyncThunk(
+  'users/modifyPassword',
+  async ({ id, data }: { id: string; data: ChangePasswordRequest }, { rejectWithValue }) => {
+    try {
+      await changePassword(id, data);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '修改密码失败');
+    }
   }
-});
+);
 
-// 创建user slice
 const userSlice = createSlice({
   name: 'users',
   initialState,
   reducers: {
-    clearSelectedUser: (state) => {
-      state.selectedUser = null;
-    },
-    clearError: (state) => {
+    clearUserError(state) {
       state.error = null;
+    },
+    clearCurrentUser(state) {
+      state.currentUser = null;
     },
   },
   extraReducers: (builder) => {
-    // 处理获取用户列表
     builder
+      // 处理获取用户列表
       .addCase(fetchUsers.pending, (state) => {
-        state.status = 'loading';
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchUsers.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.users = action.payload.data;
-        state.pagination = action.payload.pagination;
+      .addCase(fetchUsers.fulfilled, (state, action: PayloadAction<PaginatedResponse<User> | null>) => {
+        state.loading = false;
+        if (action.payload) {
+          state.users = action.payload.data;
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchUsers.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '获取用户列表失败';
-      });
-
-    // 处理获取单个用户
-    builder
-      .addCase(fetchUserById.pending, (state) => {
-        state.status = 'loading';
+        state.loading = false;
+        state.error = action.payload as string;
       })
-      .addCase(fetchUserById.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.selectedUser = action.payload;
+      // 处理获取用户详情
+      .addCase(fetchUserById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserById.fulfilled, (state, action: PayloadAction<User | null>) => {
+        state.loading = false;
+        state.currentUser = action.payload;
       })
       .addCase(fetchUserById.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '获取用户信息失败';
-      });
-
-    // 处理创建用户
-    builder
-      .addCase(createUser.pending, (state) => {
-        state.status = 'loading';
+        state.loading = false;
+        state.error = action.payload as string;
       })
-      .addCase(createUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.users.push(action.payload);
+      // 处理创建用户
+      .addCase(addUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(createUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '创建用户失败';
-      });
-
-    // 处理更新用户
-    builder
-      .addCase(updateUser.pending, (state) => {
-        state.status = 'loading';
+      .addCase(addUser.fulfilled, (state) => {
+        state.loading = false;
       })
-      .addCase(updateUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        // 更新用户列表中的数据
-        const index = state.users.findIndex(user => user.id === action.payload.id);
-        if (index !== -1) {
-          state.users[index] = action.payload;
-        }
-        // 如果是当前选中的用户，也更新selectedUser
-        if (state.selectedUser?.id === action.payload.id) {
-          state.selectedUser = action.payload;
-        }
+      .addCase(addUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
-      .addCase(updateUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '更新用户失败';
-      });
-
-    // 处理删除用户
-    builder
-      .addCase(deleteUser.pending, (state) => {
-        state.status = 'loading';
+      // 处理更新用户
+      .addCase(editUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(deleteUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        // 从用户列表中移除被删除的用户
-        state.users = state.users.filter(user => user.id !== action.payload);
-        // 如果当前选中的用户被删除，清空selectedUser
-        if (state.selectedUser?.id === action.payload) {
-          state.selectedUser = null;
-        }
+      .addCase(editUser.fulfilled, (state) => {
+        state.loading = false;
       })
-      .addCase(deleteUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '删除用户失败';
-      });
-
-    // 处理修改密码
-    builder
-      .addCase(changeUserPassword.pending, (state) => {
-        state.status = 'loading';
+      .addCase(editUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
-      .addCase(changeUserPassword.fulfilled, (state) => {
-        state.status = 'succeeded';
-        // 密码修改成功，不需要更改状态
+      // 处理删除用户
+      .addCase(removeUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(changeUserPassword.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload?.message || '修改密码失败';
+      .addCase(removeUser.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(removeUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // 处理修改密码
+      .addCase(modifyPassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(modifyPassword.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(modifyPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-// 导出actions
-export const { clearSelectedUser, clearError } = userSlice.actions;
+export const { clearUserError, clearCurrentUser } = userSlice.actions;
 
-// 导出reducer
-export default userSlice.reducer; 
+export default userSlice.reducer;

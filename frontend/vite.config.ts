@@ -10,6 +10,18 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  css: {
+    preprocessorOptions: {
+      less: {
+        javascriptEnabled: true, // 支持Less中的JavaScript表达式
+        modifyVars: {
+          'primary-color': '#7c3aed', // 紫色主题
+          'link-color': '#7c3aed',
+          'border-radius-base': '4px',
+        },
+      },
+    },
+  },
   server: {
     port: 3000,
     host: true,
