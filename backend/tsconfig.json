@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "target": "ES2021",
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "strict": true,
+        "lib": [
+            "ES2021"
+        ],
+        "types": [
+            "@cloudflare/workers-types"
+        ],
+        "jsx": "react-jsx",
+        "jsxImportSource": "hono/jsx",
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "wrangler.toml"
+    ]
+}

@@ -1,0 +1,39 @@
+{
+    "name": "adver-admin-backend",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "wrangler dev --port=8080",
+        "deploy": "wrangler deploy",
+        "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --platform=node",
+        "format": "prettier --write \"**/*.{js,ts}\"",
+        "lint": "eslint \"**/*.{js,ts}\"",
+        "db:generate": "drizzle-kit generate",
+        "db:push": "drizzle-kit push"
+    },
+    "dependencies": {
+        "@hono/zod-validator": "^0.1.11",
+        "@node-rs/argon2": "^2.0.2",
+        "drizzle-orm": "^0.43.1",
+        "hono": "^4.7.10",
+        "jose": "^5.2.0",
+        "nanoid": "^5.0.4",
+        "postgres": "^3.4.3",
+        "redis": "^4.6.13",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20231218.0",
+        "@types/bcrypt": "^5.0.2",
+        "@types/node": "^20.11.0",
+        "@typescript-eslint/eslint-plugin": "^6.14.0",
+        "@typescript-eslint/parser": "^6.14.0",
+        "drizzle-kit": "^0.31.1",
+        "esbuild": "^0.19.11",
+        "eslint": "^8.56.0",
+        "prettier": "^3.1.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.3.3",
+        "wrangler": "^4.16.1"
+    }
+}

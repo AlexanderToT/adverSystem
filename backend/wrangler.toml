@@ -1,0 +1,35 @@
+name = "adver-admin-backend"
+main = "src/index.ts"
+compatibility_date = "2023-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# 环境变量配置
+JWT_SECRET = "your-jwt-secret-replace-in-production"
+JWT_EXPIRES_IN = "24h"
+
+# 数据库配置
+DATABASE_URL = "postgres://pguser:123456@localhost:5432/adverAdmin"
+
+# Redis配置
+REDIS_URL = "redis://localhost:6379"
+
+# 开发环境配置
+[env.development]
+vars = { NODE_ENV = "development" }
+
+# 生产环境配置
+[env.production]
+vars = { NODE_ENV = "production" }
+
+# KV命名空间 (用于JWT黑名单)
+[[kv_namespaces]]
+binding = "JWT_BLACKLIST"
+id = "your-kv-namespace-id-replace-in-production"
+preview_id = "your-preview-kv-namespace-id-replace-in-development"
+
+# R2配置 (用于文件存储)
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "adver-admin-storage"
+preview_bucket_name = "adver-admin-storage-dev" 
