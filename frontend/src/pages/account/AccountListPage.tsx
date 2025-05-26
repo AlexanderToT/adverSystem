@@ -59,7 +59,7 @@ const AccountListPage: React.FC = () => {
       email: user.email,
       loginType: user.loginType,
       isActive: user.isActive,
-      roleIds: user.roles?.map(role => role.id) || [],
+      roleIds: user.roles && user.roles.length > 0 ? user.roles[0].id : undefined,
     });
     setIsModalVisible(true);
   };
@@ -94,7 +94,7 @@ const AccountListPage: React.FC = () => {
           displayName: values.displayName,
           email: values.email,
           isActive: values.isActive,
-          roleIds: values.roleIds,
+          roleIds: [values.roleIds],
         };
         await dispatch(editUser({ id: editingUser.id, data: updateData })).unwrap();
         messageApi.success('用户更新成功');
@@ -106,7 +106,7 @@ const AccountListPage: React.FC = () => {
           displayName: values.displayName,
           email: values.email,
           loginType: values.loginType || 'password',
-          roleIds: values.roleIds,
+          roleIds: [values.roleIds],
         };
         await dispatch(addUser(createData)).unwrap();
         messageApi.success('用户创建成功');
@@ -335,10 +335,9 @@ const AccountListPage: React.FC = () => {
           <Form.Item
             name="roleIds"
             label="角色"
-            rules={[{ required: true, message: '请选择至少一个角色' }]}
+            rules={[{ required: true, message: '请选择角色' }]}
           >
             <Select 
-              mode="multiple" 
               placeholder="请选择角色"
               loading={!roles.length}
             >

@@ -37,7 +37,20 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   useEffect(() => {
     const path = location.pathname;
     const paths = path.split('/').filter(p => p);
-    setBreadcrumbs(paths);
+    
+    // 路径映射为中文
+    const pathNameMap: Record<string, string> = {
+      'account': '账号管理',
+      'list': '列表',
+      'application': '应用管理',
+      'advertisement': '广告管理',
+      'edit': '编辑',
+      'create': '新增',
+      'detail': '详情',
+    };
+    
+    const chinesePaths = paths.map(path => pathNameMap[path] || path);
+    setBreadcrumbs(chinesePaths);
   }, [location]);
 
   // 菜单项配置
