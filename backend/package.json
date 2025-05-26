@@ -5,11 +5,13 @@
     "scripts": {
         "dev": "wrangler dev --local --ip 0.0.0.0 --port 8080 src/index.ts",
         "deploy": "wrangler deploy",
-        "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --platform=node",
+        "build": "tsc && esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --platform=node",
+        "build:tsc": "tsc",
         "format": "prettier --write \"**/*.{js,ts}\"",
         "lint": "eslint \"**/*.{js,ts}\"",
         "db:generate": "drizzle-kit generate",
-        "db:push": "drizzle-kit push"
+        "db:push": "drizzle-kit push",
+        "clean": "rm -rf dist"
     },
     "dependencies": {
         "@hono/zod-validator": "^0.1.11",
