@@ -38,12 +38,12 @@ export const getUserById = (id: string): Promise<ApiResponse<User>> => {
 
 // 创建用户
 export const createUser = (data: CreateUserRequest): Promise<ApiResponse<User>> => {
-  return post<ApiResponse<User>>('/users', data);
+  return post<ApiResponse<User>>('/users/addUser', data);
 };
 
 // 更新用户
 export const updateUser = (id: string, data: UpdateUserRequest): Promise<ApiResponse<User>> => {
-  return put<ApiResponse<User>>(`/users/${id}`, data);
+  return put<ApiResponse<User>>(`/users/updateUsers/${id}`, data);
 };
 
 // 删除用户
@@ -58,5 +58,5 @@ export const changePassword = (id: string, data: ChangePasswordRequest): Promise
 
 // 获取角色列表
 export const getRoles = (): Promise<ApiResponse<Role[]>> => {
-  return get<ApiResponse<Role[]>>('/roles');
+  return get<ApiResponse<Role[]>>('users/roles');
 };

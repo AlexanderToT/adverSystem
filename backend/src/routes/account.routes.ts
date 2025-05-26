@@ -14,6 +14,9 @@ accountRouter.post('/login', zValidator('json', loginSchema), accountController.
 accountRouter.post('/logout', authenticate, accountController.logoutHandler);
 accountRouter.get('/me', authenticate, accountController.getCurrentUserHandler);
 
+// 获取角色列表
+accountRouter.get('/roles', authenticate, accountController.getRolesHandler);
+
 // 用户管理路由 (需要认证)
 accountRouter.use('/users/*', authenticate);
 
@@ -21,7 +24,7 @@ accountRouter.use('/users/*', authenticate);
 accountRouter.get('/usersList', accountController.getUsersHandler);
 
 // 创建用户 (仅超级管理员)
-accountRouter.post('/users', 
+accountRouter.post('/addUser', 
   authorize(['super_admin']), 
   zValidator('json', createUserSchema), 
   accountController.createUserHandler
@@ -31,7 +34,7 @@ accountRouter.post('/users',
 accountRouter.get('/users/:id', accountController.getUserByIdHandler);
 
 // 更新用户 (仅超级管理员或用户自己)
-accountRouter.put('/users/:id', 
+accountRouter.put('/updateUsers/:id', 
   zValidator('json', updateUserSchema), 
   accountController.updateUserHandler
 );

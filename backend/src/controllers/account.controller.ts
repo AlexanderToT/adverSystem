@@ -138,4 +138,14 @@ export const changeUserPasswordHandler = async (c: Context) => {
   } catch (err: any) {
     return error(c, err.message || '修改密码失败', 400, 400);
   }
+};
+
+// 获取角色列表
+export const getRolesHandler = async (c: Context) => {
+  try {
+    const roles = await accountService.getRoles(c);
+    return success(c, roles, '获取角色列表成功');
+  } catch (err: any) {
+    return error(c, err.message || '获取角色列表失败', 400, 400);
+  }
 }; 

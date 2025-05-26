@@ -456,4 +456,19 @@ export const changeUserPassword = async (id: string, { newPassword }: ChangePass
       updatedAt: new Date()
     })
     .where(eq(schema.users.id, id));
+};
+
+// 获取所有角色列表
+export const getRoles = async (c: Context) => {
+  const db = getDb(c.env);
+  
+  const rolesList = await db.query.roles.findMany({
+    orderBy: (roles, { asc }) => [asc(roles.name)],
+  });
+
+  return rolesList.map(role => ({
+    id: role.id,
+    name: role.name,
+    description: role.description || undefined
+  }));
 }; 
