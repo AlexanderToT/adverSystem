@@ -39,7 +39,7 @@ const AD_TYPES = [
   { value: 'popup_image', label: '弹窗图片' },
   { value: 'popup_video', label: '弹窗视频' },
   { value: 'banner_multiple_image', label: '横幅多图' },
-  { value: 'strip_multiple_image', label: '信息流多图' },
+  { value: 'strip_multiple_image', label: 'Banner多图' },
 ];
 
 // 国家/地区选项

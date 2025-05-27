@@ -50,7 +50,7 @@ const AdvertisementListPage: React.FC = () => {
   
   // 页面加载时获取广告列表
   useEffect(() => {
-    //dispatch(fetchAdvertisements(queryParams) as any);
+    dispatch(fetchAdvertisements(queryParams) as any);
   }, [dispatch, queryParams]);
   
   // 处理表格分页变化
@@ -236,6 +236,13 @@ const AdvertisementListPage: React.FC = () => {
     }
   };
 
+  // 默认分页配置
+  const defaultPagination = {
+    current: 1,
+    pageSize: 10,
+    total: 0
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -330,9 +337,9 @@ const AdvertisementListPage: React.FC = () => {
           dataSource={advertisements}
           loading={loading}
           pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
+            current: pagination?.current || defaultPagination.current,
+            pageSize: pagination?.pageSize || defaultPagination.pageSize,
+            total: pagination?.total || defaultPagination.total,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `共 ${total} 条记录`
