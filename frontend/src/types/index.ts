@@ -1,17 +1,34 @@
-// API响应类型
+// API响应数据类型
 export interface ApiResponse<T = any> {
   code: number;
-  message: string;
-  data: T | null;
-}
-
-// 分页数据类型
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
+  message?: string;
+  data: T;
+  pagination?: {
+    total: number;
     current: number;
     pageSize: number;
+  };
+}
+
+// 分页响应数据类型
+export interface PaginatedResponse<T = any> {
+  data: T[];
+  pagination: {
     total: number;
+    current: number;
+    pageSize: number;
+  };
+}
+
+// 后端API响应格式
+export interface BackendApiResponse<T = any> {
+  code: number; // 状态码
+  message?: string; // 消息
+  data: T; // 数据
+  pagination?: {
+    total: number;
+    current: number;
+    pageSize: number;
   };
 }
 

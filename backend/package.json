@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "wrangler dev --local --ip 0.0.0.0 --port 8080 src/index.ts",
+        "dev": "wrangler dev --env development --local --ip 0.0.0.0 --port 8080 src/index.ts",
         "deploy": "wrangler deploy",
         "build": "tsc && esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --platform=node",
         "build:tsc": "tsc",

@@ -30,7 +30,9 @@ import {
   createAdvertisement,
   updateAdvertisement,
   getMaterialUploadUrl,
+  clearUploadUrls,
 } from '@/store/slices/advertisementSlice';
+import { getToken } from '@/utils/storage';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -94,6 +96,7 @@ const AdvertisementFormPage: React.FC = () => {
   const [adType, setAdType] = useState<string>('');
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [readyToUpload, setReadyToUpload] = useState(false);
   const [targetUrl, setTargetUrl] = useState<string>('');
   const [currentUploadingField, setCurrentUploadingField] = useState<number | null>(null);
   const [isManualVideoUrl, setIsManualVideoUrl] = useState(false);
@@ -210,13 +213,17 @@ const AdvertisementFormPage: React.FC = () => {
   // 获取上传URL
   const handleBeforeUpload = async (file: File) => {
     try {
-      setUploading(true);
       setFileList([file]);
       setCurrentUploadingField(null);
       
       const fileName = file.name;
       const contentType = file.type;
+      console.log('开始获取上传URL, 文件:', fileName, '类型:', contentType);
       
+      // 清除之前的状态
+      dispatch(clearUploadUrls());
+      
+      // 获取上传URL
       const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
       
       // 检查dispatch结果是否有错误
@@ -225,6 +232,7 @@ const AdvertisementFormPage: React.FC = () => {
         throw new Error(result.error.message || '获取上传URL失败');
       }
       
+      console.log('获取上传URL成功', result);
       return false; // 阻止自动上传
     } catch (error: any) {
       // 重置所有状态
@@ -238,13 +246,17 @@ const AdvertisementFormPage: React.FC = () => {
   const handleMultipleBeforeUpload = (fieldIndex: number) => {
     return async (file: File) => {
       try {
-        setUploading(true);
         setFileList([file]);
         setCurrentUploadingField(fieldIndex);
         
         const fileName = file.name;
         const contentType = file.type;
+        console.log('开始获取多素材上传URL, 文件:', fileName, '类型:', contentType, '字段索引:', fieldIndex);
         
+        // 清除之前的状态
+        dispatch(clearUploadUrls());
+        
+        // 获取上传URL
         const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
         
         // 检查dispatch结果是否有错误
@@ -253,6 +265,7 @@ const AdvertisementFormPage: React.FC = () => {
           throw new Error(result.error.message || '获取上传URL失败');
         }
         
+        console.log('获取多素材上传URL成功', result);
         return false; // 阻止自动上传
       } catch (error: any) {
         // 重置所有状态
@@ -263,105 +276,101 @@ const AdvertisementFormPage: React.FC = () => {
     };
   };
 
-  // 执行文件上传
-  const handleUpload = async () => {
-    if (!uploadUrls || fileList.length === 0) {
-      message.error('请先选择文件');
-      return;
+  // 监听uploadUrls变化，设置待上传状态
+  useEffect(() => {
+    if (uploadUrls && fileList.length > 0 && !uploading) {
+      console.log('获取到上传URL，准备上传文件');
+      setReadyToUpload(true);
     }
+  }, [uploadUrls, fileList, uploading]);
 
-    setUploading(true);
-
-    // 超时控制
-    let timeoutId: any = null;
-    const uploadTimeout = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error('上传超时，请检查网络连接后重试'));
-      }, 30000); // 30秒超时
-    });
-
-    try {
-      const file = fileList[0];
-      
-      // 使用预签名URL上传文件，添加超时控制
-      const uploadPromise = fetch(uploadUrls.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-      
-      // 使用Promise.race来实现超时控制
-      const response = await Promise.race([uploadPromise, uploadTimeout]) as Response;
-      
-      // 清除超时定时器
-      if (timeoutId) clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        resetFileUploadState();
-        throw new Error('上传失败，状态码: ' + response.status);
-      }
-
-      // 上传成功后设置素材信息
-      const materialConfig: MaterialConfig = {
-        url: uploadUrls.fileUrl,
-        filePath: uploadUrls.filePath,
-        fileType: file.type,
-        fileName: file.name,
-        fileSize: file.size,
-      };
-
-      // 如果是多素材中的某一项
-      if (currentUploadingField !== null) {
-        // 更新表单中对应字段的值
-        const displayConfig = form.getFieldValue('displayConfig') || [];
-        displayConfig[currentUploadingField] = {
-          ...displayConfig[currentUploadingField],
-          materialUrl: uploadUrls.fileUrl
-        };
-        form.setFieldValue('displayConfig', [...displayConfig]);
-        setCurrentUploadingField(null);
-      } else {
-        setUploadedMaterial(materialConfig);
-      }
-      
-      message.success('上传成功');
-      
-      // 清空文件列表
-      setFileList([]);
-    } catch (error: any) {
-      // 清除超时定时器
-      if (timeoutId) clearTimeout(timeoutId);
-      
-      message.error(`上传失败: ${error.message}`);
-      
-      // 重置所有上传状态
-      resetFileUploadState();
-      
-      // 重置手动输入的视频URL（如果当前是视频且处于手动输入模式）
-      if (adType === 'popup_video' && isManualVideoUrl) {
-        setManualVideoUrl('');
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // 当获取到预签名URL后自动执行上传
+  // 当readyToUpload变为true时执行上传
   useEffect(() => {
     let isMounted = true;
-    
+
     const performUpload = async () => {
-      if (uploadUrls && fileList.length > 0 && !uploading && isMounted) {
-        try {
-          await handleUpload();
-        } catch (error) {
-          // 确保在出错时重置状态
-          if (isMounted) {
-            resetFileUploadState();
-            message.error('上传过程中发生错误，请重试');
+      if (!readyToUpload || !uploadUrls || fileList.length === 0) {
+        return;
+      }
+
+      // 重置ready状态，避免重复上传
+      setReadyToUpload(false);
+      setUploading(true);
+
+      try {
+        console.log('开始上传文件', {
+          uploadUrl: uploadUrls.uploadUrl,
+          filePath: uploadUrls.filePath,
+          fileName: fileList[0].name
+        });
+        
+        // 创建FormData用于上传
+        const file = fileList[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('filePath', uploadUrls.filePath);
+        formData.append('contentType', file.type);
+        
+        // 获取认证token
+        const token = getToken();
+        
+        // 发送上传请求，包含认证信息
+        const response = await fetch(uploadUrls.uploadUrl, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
           }
+        });
+        
+        if (!response.ok) {
+          throw new Error('上传失败，状态码: ' + response.status);
+        }
+        
+        // 解析响应
+        const result = await response.json();
+        console.log('上传结果:', result);
+        
+        if (result.code !== 200) {
+          throw new Error(result.message || '上传失败');
+        }
+        
+        // 上传成功后设置素材信息
+        const materialConfig = {
+          url: result.data.fileUrl,
+          filePath: result.data.filePath,
+          fileType: file.type,
+          fileName: file.name,
+          fileSize: file.size,
+        };
+        
+        if (currentUploadingField !== null) {
+          // 更新表单中对应字段的值
+          const displayConfig = form.getFieldValue('displayConfig') || [];
+          displayConfig[currentUploadingField] = {
+            ...displayConfig[currentUploadingField],
+            materialUrl: result.data.fileUrl
+          };
+          form.setFieldValue('displayConfig', [...displayConfig]);
+          setCurrentUploadingField(null);
+        } else {
+          setUploadedMaterial(materialConfig);
+        }
+        
+        message.success('上传成功');
+        setFileList([]);
+      } catch (error) {
+        // 确保在出错时重置状态
+        console.error('上传失败:', error);
+        message.error('上传过程中发生错误，请重试');
+        resetFileUploadState();
+        // 重置手动输入的视频URL（如果当前是视频且处于手动输入模式）
+        if (adType === 'popup_video' && isManualVideoUrl) {
+          setManualVideoUrl('');
+        }
+      } finally {
+        if (isMounted) {
+          setUploading(false);
         }
       }
     };
@@ -372,7 +381,7 @@ const AdvertisementFormPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [uploadUrls, fileList, uploading]);
+  }, [readyToUpload, uploadUrls, fileList, form, currentUploadingField, adType, isManualVideoUrl]);
 
   // 处理表单提交
   const handleSubmit = async (values: AdvertisementFormData) => {
@@ -454,10 +463,6 @@ const AdvertisementFormPage: React.FC = () => {
     message.success('视频URL已设置');
   };
 
-  // 检查文件是否为图片
-  const isImageFile = (fileType: string | undefined) => {
-    return fileType?.startsWith('image/');
-  };
 
   // 检查URL是否为图片
   const isImageUrl = (url: string | undefined) => {

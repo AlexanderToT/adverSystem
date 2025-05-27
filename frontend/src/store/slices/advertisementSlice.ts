@@ -70,8 +70,9 @@ export const fetchAdvertisements = createAsyncThunk(
   'advertisements/fetchAdvertisements',
   async (params: AdvertisementQuery = {}, { rejectWithValue }) => {
     try {
-      const response = await advertisementApi.getAdvertisements(params);
-      return response.data as PaginatedResponse<Advertisement>;
+      // API 返回的格式: { code: 200, data: [...], pagination: {...} }
+      const apiResponse = await advertisementApi.getAdvertisements(params);
+      return apiResponse;
     } catch (error: any) {
       return rejectWithValue(error.message || '获取广告列表失败');
     }
@@ -84,6 +85,7 @@ export const fetchAdvertisementById = createAsyncThunk(
   async (id: string, { rejectWithValue }) => {
     try {
       const response = await advertisementApi.getAdvertisementById(id);
+      // response格式为 { code: 200, data: {...} }
       return response.data as Advertisement;
     } catch (error: any) {
       return rejectWithValue(error.message || '获取广告详情失败');
@@ -202,10 +204,15 @@ const advertisementSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchAdvertisements.fulfilled, (state, action: PayloadAction<PaginatedResponse<Advertisement>>) => {
+      .addCase(fetchAdvertisements.fulfilled, (state, action) => {
         state.loading = false;
-        state.advertisements = action.payload.data;
-        state.pagination = action.payload.pagination;
+        // 服务器返回的格式: { code: 200, data: [...], pagination: {...} }
+        state.advertisements = action.payload.data || [];
+        state.pagination = action.payload.pagination || {
+          current: 1,
+          pageSize: 10,
+          total: 0
+        };
       })
       .addCase(fetchAdvertisements.rejected, (state, action) => {
         state.loading = false;

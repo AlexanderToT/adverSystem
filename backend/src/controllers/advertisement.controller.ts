@@ -52,10 +52,25 @@ export const getAdvertisementByIdHandler = async (c: Context) => {
 // 创建广告
 export const createAdvertisementHandler = async (c: Context) => {
   try {
-    const validator = zValidator('json', createAdSchema);
-    await validator(c, async () => {});
+    console.log('开始处理创建广告请求');
     
+    // 解析请求体
     const body = await c.req.json();
+    console.log('请求体内容:', JSON.stringify(body, null, 2));
+    
+    // 进行验证
+    try {
+      const validator = zValidator('json', createAdSchema);
+      await validator(c, async () => {});
+      console.log('验证通过');
+    } catch (validationError: any) {
+      console.error('验证失败:', validationError);
+      return c.json({
+        code: 400,
+        message: `验证失败: ${validationError.message}`,
+        data: null,
+      }, 400);
+    }
     
     // 处理不同广告类型的特殊逻辑
     switch (body.adType) {
@@ -81,13 +96,16 @@ export const createAdvertisementHandler = async (c: Context) => {
         break;
     }
     
+    console.log('开始调用服务创建广告');
     const newAd = await advertisementService.createAdvertisement(body, c);
+    console.log('创建广告成功:', newAd);
     
     return c.json({
       code: 201,
       data: newAd,
     }, 201);
   } catch (error: any) {
+    console.error('创建广告失败:', error);
     return c.json({
       code: 500,
       message: `创建广告失败: ${error.message}`,
@@ -218,14 +236,49 @@ export const getMaterialUploadUrlHandler = async (c: Context) => {
       }, 400);
     }
     
+    // 输出环境信息以便调试
+    console.log('环境变量:', Object.keys(c.env));
+    console.log('STORAGE是否存在:', !!c.env.STORAGE);
+    
+    if (!c.env.STORAGE) {
+      return c.json({
+        code: 500,
+        message: 'R2存储未正确配置',
+        data: null,
+      }, 500);
+    }
+
+    // 检查R2 bucket对象
+    console.log('R2 bucket类型:', typeof c.env.STORAGE);
+    console.log('R2 bucket方法:', Object.getOwnPropertyNames(Object.getPrototypeOf(c.env.STORAGE)));
+    
     // 生成文件路径
     const filePath = `advertisements/${Date.now()}-${fileName}`;
     
     // 获取上传签名URL
-    const presignedUrl = await generateR2PresignedUrl(c.env.STORAGE, filePath, contentType, 'PUT');
+    // const presignedUrl = await generateR2PresignedUrl(c.env.STORAGE, filePath, contentType, 'PUT');
     
-    // 获取文件访问URL
-    const fileUrl = await getObjectSignedUrl(c.env.STORAGE, filePath);
+    // 临时解决方案：检查可用的API
+    let presignedUrl = null;
+    let fileUrl = null;
+    
+    try {
+      if (typeof c.env.STORAGE.put === 'function') {
+        // 临时返回直接上传URL (后端上传)
+        const baseUrl = c.req.url.split('/materials/upload-url')[0];
+        presignedUrl = `${baseUrl}/upload-direct`;
+        fileUrl = `${baseUrl}/files/${filePath}`;
+      } else {
+        throw new Error('R2 bucket 没有可用的上传方法');
+      }
+    } catch (uploadError: any) {
+      console.error('获取上传URL方法失败:', uploadError);
+      return c.json({
+        code: 500,
+        message: `R2存储配置问题: ${uploadError.message}`,
+        data: null,
+      }, 500);
+    }
     
     return c.json({
       code: 200,
@@ -236,9 +289,167 @@ export const getMaterialUploadUrlHandler = async (c: Context) => {
       },
     });
   } catch (error:any) {
+    console.error('获取上传URL失败:', error);
     return c.json({
       code: 500,
       message: `获取上传URL失败: ${error.message}`,
+      data: null,
+    }, 500);
+  }
+};
+
+// 直接上传素材的处理程序
+export const uploadDirectHandler = async (c: Context) => {
+  try {
+    console.log('收到文件上传请求');
+    const formData = await c.req.formData();
+    const file = formData.get('file');
+    const pathFromClient = formData.get('filePath') as string;
+    const contentType = formData.get('contentType') as string;
+    
+    console.log('文件上传信息:', {
+      hasFile: !!file,
+      pathFromClient,
+      contentType,
+      fileType: file ? (typeof file === 'string' ? 'string' : (file as any).type || 'unknown') : 'none'
+    });
+    
+    if (!file || !pathFromClient) {
+      return c.json({
+        code: 400,
+        message: '文件和路径不能为空',
+        data: null,
+      }, 400);
+    }
+    
+    if (!c.env.STORAGE || typeof c.env.STORAGE.put !== 'function') {
+      console.log('R2存储配置问题:', {
+        hasStorage: !!c.env.STORAGE,
+        hasPutMethod: c.env.STORAGE && typeof c.env.STORAGE.put === 'function'
+      });
+      return c.json({
+        code: 500,
+        message: 'R2存储未正确配置',
+        data: null,
+      }, 500);
+    }
+    
+    // 从文件中获取arrayBuffer
+    let arrayBuffer: ArrayBuffer;
+    let fileContentType = contentType;
+    
+    try {
+      if (typeof file === 'string') {
+        console.log('处理字符串文件内容');
+        // 处理字符串
+        arrayBuffer = new TextEncoder().encode(file).buffer;
+        if (!fileContentType) {
+          fileContentType = 'text/plain';
+        }
+      } else {
+        console.log('处理Blob/File文件');
+        // 处理Blob/File (FormData会提供这些类型)
+        // 使用any类型断言解决TypeScript的instanceof检查问题
+        const blobFile = file as any;
+        arrayBuffer = await blobFile.arrayBuffer();
+        
+        if (!fileContentType && blobFile.type) {
+          fileContentType = blobFile.type;
+        } else if (!fileContentType) {
+          fileContentType = 'application/octet-stream';
+        }
+      }
+      
+      // 上传到R2
+      console.log('开始上传文件到R2:', {
+        filePath: pathFromClient, 
+        contentType: fileContentType,
+        bufferSize: arrayBuffer.byteLength
+      });
+      
+      await c.env.STORAGE.put(pathFromClient, arrayBuffer, {
+        httpMetadata: {
+          contentType: fileContentType,
+        },
+      });
+      
+      console.log('文件上传到R2成功');
+    } catch (error: any) {
+      console.error('文件处理或上传过程出错:', error);
+      return c.json({
+        code: 500,
+        message: `文件处理或上传失败: ${error.message}`,
+        data: null,
+      }, 500);
+    }
+    
+    // 构建访问URL (简化版 - 实际应该生成签名URL或公共URL)
+    const fileUrl = `${c.req.url.replace(/\/upload-direct$/, '')}/files/${pathFromClient}`;
+    
+    return c.json({
+      code: 200,
+      data: {
+        fileUrl: fileUrl,
+        filePath: pathFromClient,
+      },
+    });
+  } catch (error: any) {
+    console.error('获取上传URL失败:', error);
+    return c.json({
+      code: 500,
+      message: `获取上传URL失败: ${error.message}`,
+      data: null,
+    }, 500);
+  }
+};
+
+// 获取已上传文件
+export const getFileHandler = async (c: Context) => {
+  try {
+    const filePath = c.req.param('*');
+    
+    if (!filePath) {
+      return c.json({
+        code: 400,
+        message: '文件路径不能为空',
+        data: null,
+      }, 400);
+    }
+    
+    if (!c.env.STORAGE || typeof c.env.STORAGE.get !== 'function') {
+      return c.json({
+        code: 500,
+        message: 'R2存储未正确配置',
+        data: null,
+      }, 500);
+    }
+    
+    // 从R2获取文件
+    const object = await c.env.STORAGE.get(filePath);
+    
+    if (!object) {
+      return c.json({
+        code: 404,
+        message: '文件不存在',
+        data: null,
+      }, 404);
+    }
+    
+    // 获取文件内容和元数据
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    
+    const data = await object.arrayBuffer();
+    
+    return new Response(data, {
+      headers,
+    });
+  } catch (error: any) {
+    console.error('获取文件失败:', error);
+    return c.json({
+      code: 500,
+      message: `获取文件失败: ${error.message}`,
       data: null,
     }, 500);
   }

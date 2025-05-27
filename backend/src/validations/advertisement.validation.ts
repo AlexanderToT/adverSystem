@@ -11,28 +11,38 @@ const commonAdFieldsSchema = z.object({
 // 弹窗图片广告验证
 const popupImageSchema = commonAdFieldsSchema.extend({
   adType: z.literal('popup_image'),
-  targetUrl: z.string().url('请输入有效的URL'),
+  targetUrl: z.string().url('请输入有效的URL').or(z.string().length(0)),
   materialConfig: z.object({
     url: z.string().url('请输入有效的URL'),
-    type: z.string(),
+    filePath: z.string().optional(),
+    fileType: z.string().optional(),
+    fileName: z.string().optional(),
+    fileSize: z.number().optional(),
+    targetUrl: z.string().optional(),
+    type: z.string().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
     mimeType: z.string().optional(),
-  }),
+  }).optional(),
 });
 
 // 弹窗视频广告验证
 const popupVideoSchema = commonAdFieldsSchema.extend({
   adType: z.literal('popup_video'),
-  targetUrl: z.string().url('请输入有效的URL').optional(),
+  targetUrl: z.string().url('请输入有效的URL').or(z.string().length(0)).optional(),
   materialConfig: z.object({
     url: z.string().url('请输入有效的URL'),
-    type: z.string(),
+    filePath: z.string().optional(),
+    fileType: z.string().optional(),
+    fileName: z.string().optional(),
+    fileSize: z.number().optional(),
+    targetUrl: z.string().optional(),
+    type: z.string().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
     mimeType: z.string().optional(),
     duration: z.number().optional(),
-  }),
+  }).optional(),
 });
 
 // Banner多图广告验证
@@ -61,7 +71,14 @@ export const createAdSchema = z.discriminatedUnion('adType', [
   popupVideoSchema,
   bannerMultipleImageSchema,
   stripMultipleImageSchema,
-]);
+]).or(
+  // 提供一个更灵活的备用模式
+  commonAdFieldsSchema.extend({
+    targetUrl: z.string().optional(),
+    materialConfig: z.any().optional(),
+    displayConfig: z.array(z.any()).optional(),
+  })
+);
 
 // 更新广告验证，所有字段可选
 export const updateAdSchema = z.object({

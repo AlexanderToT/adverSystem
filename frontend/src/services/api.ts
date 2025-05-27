@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getToken } from '@/utils/storage';
+import { message } from 'antd';
 
 // 创建axios实例
 const axiosInstance: AxiosInstance = axios.create({
@@ -34,10 +35,13 @@ axiosInstance.interceptors.response.use(
     }
 
     // 检查响应状态码
-    if (res.code !== 200) {
-      // 可以在这里统一处理错误，如显示错误消息、重定向等
+    if (res.code !== 200 && res.code !== 201) {
+      // 显示错误消息
+      message.error(res.message || '请求失败');
       return Promise.reject(new Error(res.message || '错误'));
     }
+    
+    // 只返回服务端的响应数据，而不是整个axios响应对象
     return res;
   },
   (error) => {
@@ -47,7 +51,11 @@ axiosInstance.interceptors.response.use(
       if (error.response.status === 401) {
         // 重定向到登录页或其他操作
         window.location.href = '/login';
+      } else {
+        message.error(error.response.data?.message || '请求失败');
       }
+    } else {
+      message.error(error.message || '网络错误');
     }
     return Promise.reject(error);
   }

@@ -1,4 +1,6 @@
 import axiosInstance from './api';
+import { BackendApiResponse } from '@/types';
+import { Advertisement, AdStats } from '@/store/slices/advertisementSlice';
 
 export interface AdvertisementQuery {
   page?: number;
@@ -22,35 +24,35 @@ export interface MaterialUploadParams {
 const advertisementApi = {
   // 获取广告列表
   getAdvertisements: (params: AdvertisementQuery) => 
-    axiosInstance.get('/advertisements', { params }),
+    axiosInstance.get<BackendApiResponse<Advertisement[]>>('/advertisements', { params }),
   
   // 获取单个广告详情
   getAdvertisementById: (id: string) => 
-    axiosInstance.get(`/advertisements/${id}`),
+    axiosInstance.get<BackendApiResponse<Advertisement>>(`/advertisements/${id}`),
   
   // 创建广告
   createAdvertisement: (adData: any) => 
-    axiosInstance.post('/advertisements', adData),
+    axiosInstance.post<BackendApiResponse<Advertisement>>('/advertisements', adData),
   
   // 更新广告
   updateAdvertisement: (id: string, adData: any) => 
-    axiosInstance.put(`/advertisements/${id}`, adData),
+    axiosInstance.put<BackendApiResponse<Advertisement>>(`/advertisements/${id}`, adData),
   
   // 删除广告
   deleteAdvertisement: (id: string) => 
-    axiosInstance.delete(`/advertisements/${id}`),
+    axiosInstance.delete<BackendApiResponse<null>>(`/advertisements/${id}`),
   
   // 获取广告统计数据
   getAdvertisementStats: (id: string, params: AdStatsQuery) => 
-    axiosInstance.get(`/advertisements/${id}/stats`, { params }),
+    axiosInstance.get<BackendApiResponse<AdStats[]>>(`/advertisements/${id}/stats`, { params }),
   
   // 批量更新广告状态
   batchUpdateAdsStatus: (adIds: string[], isDisplayed: boolean) => 
-    axiosInstance.post('/advertisements/batch-status', { adIds, isDisplayed }),
+    axiosInstance.post<BackendApiResponse<{updatedIds: string[]}>>('/advertisements/batch-status', { adIds, isDisplayed }),
   
   // 获取素材上传URL
   getMaterialUploadUrl: (params: MaterialUploadParams) => 
-    axiosInstance.post('/advertisements/materials/upload-url', params)
+    axiosInstance.post<BackendApiResponse<{uploadUrl: string, fileUrl: string, filePath: string}>>('/advertisements/materials/upload-url', params)
 };
 
 export default advertisementApi; 
