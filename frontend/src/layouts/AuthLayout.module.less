@@ -1,49 +1,70 @@
 .authLayout {
     min-height: 100vh;
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    position: relative;
+    overflow: hidden;
+    background-color: #000000;
+}
+
+.splineContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: -200px; /* 向右延伸，把水印推出可视区域 */
+    bottom: -70px; /* 向下延伸，把水印推出可视区域 */
+    z-index: 0;
+    width: calc(100% + 200px); /* 增加宽度 */
+    height: calc(100% + 70px); /* 增加高度 */
+    overflow: hidden; /* 隐藏溢出部分 */
 }
 
 .content {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start; /* 改为靠左对齐 */
     align-items: center;
     padding: 24px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box; /* 确保padding不影响总宽度 */
 }
 
 .container {
-    background-color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     width: 100%;
     max-width: 420px;
     padding: 40px;
     position: relative;
+    margin-top: 3%;
+    margin-left: 50%; /* 固定值，不使用transform */
+    margin-right: auto; /* 自动调整右边距 */
+    transform: none; /* 移除transform */
 }
 
 .header {
-    text-align: center;
+    text-align: center; /* 添加标题居中样式 */
     margin-bottom: 32px;
 }
 
 .title {
     font-size: 24px;
     font-weight: bold;
-    color: #333;
+    color: #ffffff;
     margin-bottom: 8px;
 }
 
 .subtitle {
-    color: #666;
+    color: #ffffff;
     margin-bottom: 0;
-}
-
-.formContainer {
-    margin-bottom: 24px;
 }
 
 .footer {
     text-align: center;
-    color: #999;
+    color: #ffffff;
     font-size: 12px;
     margin-top: 24px;
 }

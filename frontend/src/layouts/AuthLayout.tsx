@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layout } from 'antd';
+import Spline from '@splinetool/react-spline';
 import styles from './AuthLayout.module.less';
 
 const { Content } = Layout;
@@ -14,11 +15,13 @@ interface AuthLayoutProps {
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <Layout className={styles.authLayout}>
+      <div className={styles.splineContainer} style={{ transform: 'translateX(-20%)' }}>
+        <Spline scene="https://prod.spline.design/JnfeYb9RiSPtDRxB/scene.splinecode" />
+      </div>
       <Content className={styles.content}>
         <div className={styles.container}>
           <div className={styles.header}>
             <h1 className={styles.title}>蓝鲸时代后台管理系统</h1>
-            <p className={styles.subtitle}>广告管理平台</p>
           </div>
           <div className={styles.formContainer}>
             {children}
