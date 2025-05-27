@@ -58,6 +58,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     setBreadcrumbs(chinesePaths);
   }, [location]);
 
+  // 计算当前菜单选中的key
+  const getSelectedKeys = () => {
+    const path = location.pathname.substring(1);
+    if (path === 'advertisements') return ['advertisements/list'];
+    if (path === '') return ['account/list']; // 根路径默认选中账号列表
+    return [path];
+  };
+
   // 菜单项配置
   const menuItems: MenuProps['items'] = [
     {
@@ -88,7 +96,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: '广告管理',
       children: [
         {
-          key: 'advertisements',
+          key: 'advertisements/list',
           label: '广告列表',
         },
         {
@@ -135,7 +143,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <Menu
           theme="light"
           mode="inline"
-          selectedKeys={[location.pathname.substring(1)]}
+          selectedKeys={getSelectedKeys()}
           defaultOpenKeys={['account', 'advertisements', 'application']}
           onClick={handleMenuClick}
           items={menuItems}

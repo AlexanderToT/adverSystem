@@ -50,7 +50,7 @@ const AdvertisementListPage: React.FC = () => {
   
   // 页面加载时获取广告列表
   useEffect(() => {
-    dispatch(fetchAdvertisements(queryParams) as any);
+    //dispatch(fetchAdvertisements(queryParams) as any);
   }, [dispatch, queryParams]);
   
   // 处理表格分页变化

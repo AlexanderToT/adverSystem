@@ -38,7 +38,7 @@ const AppRoutes: React.FC = () => {
         <Route path="account/list" element={<AccountListPage />} />
         
         {/* 广告管理路由 */}
-        <Route path="advertisements" element={<AdvertisementListPage />} />
+        <Route path="advertisements/list" element={<AdvertisementListPage />} />
         <Route path="advertisements/new" element={<AdvertisementFormPage />} />
         <Route path="advertisements/:id" element={<AdvertisementDetailsPage />} />
         <Route path="advertisements/:id/edit" element={<AdvertisementFormPage />} />
