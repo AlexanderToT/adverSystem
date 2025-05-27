@@ -15,6 +15,7 @@ import {
   Col,
   Tabs,
   Divider,
+  Image,
 } from 'antd';
 import {
   PlusOutlined,
@@ -92,6 +93,9 @@ const AdvertisementFormPage: React.FC = () => {
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [targetUrl, setTargetUrl] = useState<string>('');
+  const [currentUploadingField, setCurrentUploadingField] = useState<number | null>(null);
+  const [isManualVideoUrl, setIsManualVideoUrl] = useState(false);
+  const [manualVideoUrl, setManualVideoUrl] = useState('');
 
   const isEdit = !!id;
 
@@ -135,6 +139,12 @@ const AdvertisementFormPage: React.FC = () => {
           setTargetUrl(materialConfigData.targetUrl);
         }
         
+        // 如果是视频类型且没有filePath，认为是手动输入的视频URL
+        if (materialConfigData.fileType?.startsWith('video/') && !materialConfigData.filePath) {
+          setIsManualVideoUrl(true);
+          setManualVideoUrl(materialConfigData.url || '');
+        }
+        
         formData.materialConfig = materialConfigData;
       }
 
@@ -155,6 +165,17 @@ const AdvertisementFormPage: React.FC = () => {
       form.setFieldsValue(formData);
     }
   }, [form, isEdit, currentAd]);
+
+  // 当获取到预签名URL后自动执行上传
+  useEffect(() => {
+    const performUpload = async () => {
+      if (uploadUrls && fileList.length > 0 && !uploading) {
+        await handleUpload();
+      }
+    };
+
+    performUpload();
+  }, [uploadUrls]);
 
   // 处理表单提交
   const handleSubmit = async (values: AdvertisementFormData) => {
@@ -210,15 +231,41 @@ const AdvertisementFormPage: React.FC = () => {
   // 获取上传URL
   const handleBeforeUpload = async (file: File) => {
     try {
+      setUploading(true);
+      setFileList([file]);
+      setCurrentUploadingField(null);
+      
       const fileName = file.name;
       const contentType = file.type;
       
       await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
       return false; // 阻止自动上传
     } catch (error) {
+      setUploading(false);
       message.error('获取上传URL失败');
       return false;
     }
+  };
+  
+  // 获取上传URL (多素材)
+  const handleMultipleBeforeUpload = (fieldIndex: number) => {
+    return async (file: File) => {
+      try {
+        setUploading(true);
+        setFileList([file]);
+        setCurrentUploadingField(fieldIndex);
+        
+        const fileName = file.name;
+        const contentType = file.type;
+        
+        await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
+        return false; // 阻止自动上传
+      } catch (error) {
+        setUploading(false);
+        message.error('获取上传URL失败');
+        return false;
+      }
+    };
   };
 
   // 执行文件上传
@@ -255,7 +302,20 @@ const AdvertisementFormPage: React.FC = () => {
         fileSize: file.size,
       };
 
-      setUploadedMaterial(materialConfig);
+      // 如果是多素材中的某一项
+      if (currentUploadingField !== null) {
+        // 更新表单中对应字段的值
+        const displayConfig = form.getFieldValue('displayConfig') || [];
+        displayConfig[currentUploadingField] = {
+          ...displayConfig[currentUploadingField],
+          materialUrl: uploadUrls.fileUrl
+        };
+        form.setFieldValue('displayConfig', [...displayConfig]);
+        setCurrentUploadingField(null);
+      } else {
+        setUploadedMaterial(materialConfig);
+      }
+      
       message.success('上传成功');
       
       // 清空文件列表
@@ -270,6 +330,41 @@ const AdvertisementFormPage: React.FC = () => {
   // 处理目标URL变更
   const handleTargetUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTargetUrl(e.target.value);
+  };
+
+  // 处理手动视频URL变更
+  const handleManualVideoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualVideoUrl(e.target.value);
+  };
+
+  // 应用手动视频URL
+  const applyManualVideoUrl = () => {
+    if (!manualVideoUrl) {
+      message.error('请输入视频URL');
+      return;
+    }
+    
+    const materialConfig: MaterialConfig = {
+      url: manualVideoUrl,
+      filePath: '',
+      fileType: 'video/mp4', // 假设为mp4格式
+      fileName: manualVideoUrl.split('/').pop() || 'video.mp4',
+      fileSize: 0,
+    };
+    
+    setUploadedMaterial(materialConfig);
+    message.success('视频URL已设置');
+  };
+
+  // 检查文件是否为图片
+  const isImageFile = (fileType: string | undefined) => {
+    return fileType?.startsWith('image/');
+  };
+
+  // 检查URL是否为图片
+  const isImageUrl = (url: string | undefined) => {
+    if (!url) return false;
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   };
 
   // 渲染基本信息表单
@@ -363,9 +458,18 @@ const AdvertisementFormPage: React.FC = () => {
                 </p>
                 {uploadedMaterial.fileType?.startsWith('image/') && (
                   <div style={{ marginTop: 10 }}>
-                    <img 
+                    <Image 
                       src={uploadedMaterial.url} 
                       alt="素材预览" 
+                      style={{ maxWidth: '300px', maxHeight: '200px' }} 
+                    />
+                  </div>
+                )}
+                {uploadedMaterial.fileType?.startsWith('video/') && (
+                  <div style={{ marginTop: 10 }}>
+                    <video 
+                      src={uploadedMaterial.url} 
+                      controls 
                       style={{ maxWidth: '300px', maxHeight: '200px' }} 
                     />
                   </div>
@@ -380,23 +484,65 @@ const AdvertisementFormPage: React.FC = () => {
             </div>
           ) : (
             <div>
-              <Upload
-                beforeUpload={handleBeforeUpload}
-                fileList={fileList}
-                onChange={({ fileList }) => setFileList(fileList)}
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>选择文件</Button>
-              </Upload>
-              <Button
-                type="primary"
-                onClick={handleUpload}
-                disabled={fileList.length === 0 || !uploadUrls}
-                loading={uploading}
-                style={{ marginTop: 16 }}
-              >
-                {uploading ? '上传中' : '开始上传'}
-              </Button>
+              {adType === 'popup_video' && (
+                <div style={{ marginBottom: 16 }}>
+                  <Switch 
+                    checked={isManualVideoUrl} 
+                    onChange={(checked) => setIsManualVideoUrl(checked)} 
+                    checkedChildren="手动输入视频URL" 
+                    unCheckedChildren="上传视频文件" 
+                  />
+                </div>
+              )}
+              
+              {adType === 'popup_video' && isManualVideoUrl ? (
+                <Form.Item
+                  label="视频URL"
+                  required
+                >
+                  <Input.Group compact>
+                    <Input 
+                      style={{ width: 'calc(100% - 100px)' }} 
+                      placeholder="请输入视频URL" 
+                      value={manualVideoUrl}
+                      onChange={handleManualVideoUrlChange}
+                    />
+                    <Button 
+                      type="primary" 
+                      onClick={applyManualVideoUrl}
+                    >
+                      确定
+                    </Button>
+                  </Input.Group>
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  label="素材上传"
+                  required
+                >
+                  <Input 
+                    placeholder="选择文件后自动上传" 
+                    readOnly 
+                    value={fileList.length > 0 ? fileList[0].name : ''}
+                    addonAfter={
+                      <Upload
+                        beforeUpload={handleBeforeUpload}
+                        showUploadList={false}
+                        maxCount={1}
+                        onChange={({ fileList }) => setFileList(fileList)}
+                      >
+                        <Button 
+                          size="small" 
+                          icon={<UploadOutlined />}
+                          loading={uploading && currentUploadingField === null}
+                        >
+                          {uploading && currentUploadingField === null ? '上传中' : '上传'}
+                        </Button>
+                      </Upload>
+                    }
+                  />
+                </Form.Item>
+              )}
             </div>
           )}
           
@@ -441,10 +587,40 @@ const AdvertisementFormPage: React.FC = () => {
                       {...restField}
                       name={[name, 'materialUrl']}
                       label="素材URL"
-                      rules={[{ required: true, message: '请输入素材URL' }]}
+                      rules={[{ required: true, message: '请上传素材或输入素材URL' }]}
                     >
-                      <Input placeholder="请输入素材图片的URL" />
+                      <Input 
+                        placeholder="上传素材后自动填充URL" 
+                        readOnly 
+                        addonAfter={
+                          <Upload
+                            beforeUpload={handleMultipleBeforeUpload(name)}
+                            showUploadList={false}
+                            maxCount={1}
+                          >
+                            <Button 
+                              size="small" 
+                              icon={<UploadOutlined />}
+                              loading={uploading && currentUploadingField === name}
+                            >
+                              {uploading && currentUploadingField === name ? '上传中' : '上传'}
+                            </Button>
+                          </Upload>
+                        }
+                      />
                     </Form.Item>
+                    
+                    {form.getFieldValue(['displayConfig', name, 'materialUrl']) && 
+                      isImageUrl(form.getFieldValue(['displayConfig', name, 'materialUrl'])) && (
+                      <div style={{ marginBottom: 16 }}>
+                        <p>素材预览:</p>
+                        <Image 
+                          src={form.getFieldValue(['displayConfig', name, 'materialUrl'])} 
+                          alt="素材预览" 
+                          style={{ maxWidth: '200px', maxHeight: '150px' }} 
+                        />
+                      </div>
+                    )}
                     
                     <Form.Item
                       {...restField}
