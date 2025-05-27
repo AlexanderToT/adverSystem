@@ -11,7 +11,10 @@ import AppRoutes from '@/routes';
 const App: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
-      <BrowserRouter>
+      <BrowserRouter future={{ 
+        v7_relativeSplatPath: true,
+        v7_startTransition: true 
+      }}>
         <AppRoutes />
       </BrowserRouter>
     </ConfigProvider>
