@@ -5,6 +5,9 @@ import AuthGuard from '@/components/AuthGuard';
 // 页面组件
 import LoginPage from '@/pages/account/LoginPage';
 import AccountListPage from '@/pages/account/AccountListPage';
+import AdvertisementListPage from '@/pages/advertisement/AdvertisementListPage';
+import AdvertisementFormPage from '@/pages/advertisement/AdvertisementFormPage';
+import AdvertisementDetailsPage from '@/pages/advertisement/AdvertisementDetailsPage';
 
 /**
  * 应用路由配置
@@ -17,6 +20,12 @@ const AppRoutes: React.FC = () => {
       
       {/* 需要认证的路由 */}
       <Route path="/account/list" element={<AuthGuard><AccountListPage /></AuthGuard>} />
+      
+      {/* 广告管理路由 */}
+      <Route path="/advertisements" element={<AuthGuard><AdvertisementListPage /></AuthGuard>} />
+      <Route path="/advertisements/new" element={<AuthGuard><AdvertisementFormPage /></AuthGuard>} />
+      <Route path="/advertisements/:id" element={<AuthGuard><AdvertisementDetailsPage /></AuthGuard>} />
+      <Route path="/advertisements/:id/edit" element={<AuthGuard><AdvertisementFormPage /></AuthGuard>} />
       
       {/* 默认重定向到账号列表 */}
       <Route path="/" element={<Navigate to="/account/list" replace />} />

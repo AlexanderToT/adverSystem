@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import userReducer from './slices/userSlice';
 import roleReducer from './slices/roleSlice';
+import advertisementReducer from './slices/advertisementSlice';
 
 // 配置和创建全局Store
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     auth: authReducer,
     users: userReducer,
     roles: roleReducer,
+    advertisement: advertisementReducer,
   },
   // 非生产环境开启Redux DevTools
   devTools: process.env.NODE_ENV !== 'production',

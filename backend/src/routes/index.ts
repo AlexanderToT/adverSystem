@@ -1,17 +1,19 @@
 import { Hono } from 'hono';
-import accountRouter from './account.routes';
+import accountRoutes from './account.routes';
+import advertisementRouter from './advertisement.routes';
 // import applicationRouter from './application.routes'; // 待实现
-// import advertisementRouter from './advertisement.routes'; // 待实现
 
 // 创建API路由
-const apiRouter = new Hono();
+const api = new Hono();
 
 // 注册账号相关路由
-apiRouter.route('/auth', accountRouter); // 认证相关端点 (登录/登出/获取当前用户)
+api.route('/auth', accountRoutes); // 认证相关端点 (登录/登出/获取当前用户)
+api.route('/accounts', accountRoutes);
+api.route('/advertisements', advertisementRouter);
 
 // 健康检查端点
-apiRouter.get('/health', (c) => {
+api.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-export default apiRouter; 
+export default api; 
