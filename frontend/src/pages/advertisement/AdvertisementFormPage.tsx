@@ -73,6 +73,7 @@ interface MaterialConfig {
   fileType: string;
   fileName: string;
   fileSize: number;
+  targetUrl?: string;
 }
 
 const AdvertisementFormPage: React.FC = () => {
@@ -90,6 +91,7 @@ const AdvertisementFormPage: React.FC = () => {
   const [adType, setAdType] = useState<string>('');
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [targetUrl, setTargetUrl] = useState<string>('');
 
   const isEdit = !!id;
 
@@ -106,7 +108,6 @@ const AdvertisementFormPage: React.FC = () => {
       const formData: AdvertisementFormData = {
         name: currentAd.name,
         adType: currentAd.adType,
-        targetUrl: currentAd.targetUrl,
         isDisplayed: currentAd.isDisplayed,
         countryCodes: currentAd.countryCodes 
           ? (typeof currentAd.countryCodes === 'string' 
@@ -120,15 +121,21 @@ const AdvertisementFormPage: React.FC = () => {
 
       // 处理素材配置
       if (currentAd.materialConfig) {
-        setUploadedMaterial(
-          typeof currentAd.materialConfig === 'string'
-            ? JSON.parse(currentAd.materialConfig)
-            : currentAd.materialConfig
-        );
-        formData.materialConfig = 
-          typeof currentAd.materialConfig === 'string'
-            ? JSON.parse(currentAd.materialConfig)
-            : currentAd.materialConfig;
+        let materialConfigData;
+        if (typeof currentAd.materialConfig === 'string') {
+          materialConfigData = JSON.parse(currentAd.materialConfig);
+        } else {
+          materialConfigData = currentAd.materialConfig;
+        }
+        
+        setUploadedMaterial(materialConfigData);
+        
+        // 如果素材配置中有目标URL，设置目标URL状态
+        if (materialConfigData.targetUrl) {
+          setTargetUrl(materialConfigData.targetUrl);
+        }
+        
+        formData.materialConfig = materialConfigData;
       }
 
       // 处理显示配置
@@ -162,7 +169,13 @@ const AdvertisementFormPage: React.FC = () => {
           message.error('请上传素材');
           return;
         }
-        formData.materialConfig = uploadedMaterial || currentAd?.materialConfig;
+        
+        // 将目标URL添加到素材配置中
+        const materialConfig = uploadedMaterial || currentAd?.materialConfig;
+        formData.materialConfig = {
+          ...materialConfig,
+          targetUrl: targetUrl
+        };
       }
 
       if (isEdit && id) {
@@ -254,6 +267,11 @@ const AdvertisementFormPage: React.FC = () => {
     }
   };
 
+  // 处理目标URL变更
+  const handleTargetUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTargetUrl(e.target.value);
+  };
+
   // 渲染基本信息表单
   const renderBasicInfoForm = () => {
     return (
@@ -320,21 +338,6 @@ const AdvertisementFormPage: React.FC = () => {
             </Form.Item>
           </Col>
         </Row>
-
-        {/* 弹窗广告的目标URL */}
-        {(adType === 'popup_image' || adType === 'popup_video') && (
-          <Form.Item
-            label="目标URL"
-            name="targetUrl"
-            rules={[
-              adType === 'popup_image' 
-                ? { required: true, message: '请输入目标URL' } 
-                : {}
-            ]}
-          >
-            <Input placeholder="请输入广告点击后跳转的URL" />
-          </Form.Item>
-        )}
       </>
     );
   };
@@ -396,6 +399,23 @@ const AdvertisementFormPage: React.FC = () => {
               </Button>
             </div>
           )}
+          
+          <div style={{ marginTop: 16 }}>
+            <Form.Item
+              label="目标URL"
+              rules={[
+                adType === 'popup_image' 
+                  ? { required: true, message: '请输入目标URL' } 
+                  : {}
+              ]}
+            >
+              <Input 
+                placeholder="请输入广告点击后跳转的URL"
+                value={targetUrl}
+                onChange={handleTargetUrlChange}
+              />
+            </Form.Item>
+          </div>
         </div>
       );
     } else if (adType === 'banner_multiple_image' || adType === 'strip_multiple_image') {
@@ -433,22 +453,6 @@ const AdvertisementFormPage: React.FC = () => {
                       rules={[{ required: true, message: '请输入目标URL' }]}
                     >
                       <Input placeholder="请输入点击后跳转的URL" />
-                    </Form.Item>
-                    
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'title']}
-                      label="标题(可选)"
-                    >
-                      <Input placeholder="请输入素材标题" />
-                    </Form.Item>
-                    
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'description']}
-                      label="描述(可选)"
-                    >
-                      <TextArea placeholder="请输入素材描述" rows={2} />
                     </Form.Item>
                     
                     <Form.Item
