@@ -34,6 +34,21 @@ const AdvertisementDetailsPage: React.FC = () => {
     navigate(`/advertisements/${id}/edit`);
   };
 
+  // 解析国家代码
+  const parseCountryCodes = (codes: string | string[] | null | undefined): string[] => {
+    if (!codes) return [];
+    
+    if (typeof codes === 'string') {
+      try {
+        return JSON.parse(codes);
+      } catch (e) {
+        return [];
+      }
+    }
+    
+    return Array.isArray(codes) ? codes : [];
+  };
+
   const renderContent = () => {
     if (loading) {
       return <div className="loading-container"><Spin size="large" /></div>;
@@ -42,6 +57,8 @@ const AdvertisementDetailsPage: React.FC = () => {
     if (!currentAd) {
       return <Empty description="未找到广告信息" />;
     }
+
+    const countryCodes = parseCountryCodes(currentAd.countryCodes);
 
     return (
       <>
@@ -60,8 +77,8 @@ const AdvertisementDetailsPage: React.FC = () => {
             </Descriptions.Item>
           )}
           <Descriptions.Item label="目标国家/地区" span={2}>
-            {Array.isArray(currentAd.countryCodes) && currentAd.countryCodes.length > 0 ? 
-              currentAd.countryCodes.map((code: string) => <Tag key={code}>{code}</Tag>) : 
+            {countryCodes.length > 0 ? 
+              countryCodes.map((code: string) => <Tag key={code}>{code}</Tag>) : 
               '全球'
             }
           </Descriptions.Item>
