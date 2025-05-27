@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -16,6 +16,7 @@ import {
   Tabs,
   Divider,
   Image,
+  InputRef
 } from 'antd';
 import {
   PlusOutlined,
@@ -82,6 +83,7 @@ const AdvertisementFormPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [form] = Form.useForm();
+  const singleMaterialInputRef = useRef<InputRef>(null);
 
   const { loading, currentAd, uploadLoading, uploadUrls } = useSelector(
     (state: RootState) => state.advertisement
@@ -166,16 +168,211 @@ const AdvertisementFormPage: React.FC = () => {
     }
   }, [form, isEdit, currentAd]);
 
+  // 重置文件上传状态
+  const resetFileUploadState = () => {
+    // 重置React状态
+    setFileList([]);
+    setUploading(false);
+    
+    // 如果是单素材上传失败，清空单素材input
+    if (currentUploadingField === null) {
+      // 使用ref直接清空input
+      if (singleMaterialInputRef.current && singleMaterialInputRef.current.input) {
+        singleMaterialInputRef.current.input.value = '';
+      }
+      
+      // 清空有id的input
+      const singleMaterialInput = document.getElementById('single-material-input');
+      if (singleMaterialInput && singleMaterialInput instanceof HTMLInputElement) {
+        singleMaterialInput.value = '';
+      }
+    } else {
+      // 多素材上传，清空对应字段的materialUrl
+      const displayConfig = form.getFieldValue('displayConfig') || [];
+      if (displayConfig[currentUploadingField]) {
+        displayConfig[currentUploadingField] = {
+          ...displayConfig[currentUploadingField],
+          materialUrl: '' // 清空materialUrl
+        };
+        form.setFieldValue('displayConfig', [...displayConfig]);
+      }
+    }
+    
+    // 清空文件输入框（但不触发点击事件）
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      (input as HTMLInputElement).value = '';
+    });
+    
+    setCurrentUploadingField(null);
+  };
+
+  // 获取上传URL
+  const handleBeforeUpload = async (file: File) => {
+    try {
+      setUploading(true);
+      setFileList([file]);
+      setCurrentUploadingField(null);
+      
+      const fileName = file.name;
+      const contentType = file.type;
+      
+      const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
+      
+      // 检查dispatch结果是否有错误
+      if (result.error) {
+        resetFileUploadState();
+        throw new Error(result.error.message || '获取上传URL失败');
+      }
+      
+      return false; // 阻止自动上传
+    } catch (error: any) {
+      // 重置所有状态
+      resetFileUploadState();
+      message.error(`获取上传URL失败: ${error.message}`);
+      return false;
+    }
+  };
+  
+  // 获取上传URL (多素材)
+  const handleMultipleBeforeUpload = (fieldIndex: number) => {
+    return async (file: File) => {
+      try {
+        setUploading(true);
+        setFileList([file]);
+        setCurrentUploadingField(fieldIndex);
+        
+        const fileName = file.name;
+        const contentType = file.type;
+        
+        const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
+        
+        // 检查dispatch结果是否有错误
+        if (result.error) {
+          resetFileUploadState();
+          throw new Error(result.error.message || '获取上传URL失败');
+        }
+        
+        return false; // 阻止自动上传
+      } catch (error: any) {
+        // 重置所有状态
+        resetFileUploadState();
+        message.error(`获取上传URL失败: ${error.message}`);
+        return false;
+      }
+    };
+  };
+
+  // 执行文件上传
+  const handleUpload = async () => {
+    if (!uploadUrls || fileList.length === 0) {
+      message.error('请先选择文件');
+      return;
+    }
+
+    setUploading(true);
+
+    // 超时控制
+    let timeoutId: any = null;
+    const uploadTimeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('上传超时，请检查网络连接后重试'));
+      }, 30000); // 30秒超时
+    });
+
+    try {
+      const file = fileList[0];
+      
+      // 使用预签名URL上传文件，添加超时控制
+      const uploadPromise = fetch(uploadUrls.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      
+      // 使用Promise.race来实现超时控制
+      const response = await Promise.race([uploadPromise, uploadTimeout]) as Response;
+      
+      // 清除超时定时器
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        resetFileUploadState();
+        throw new Error('上传失败，状态码: ' + response.status);
+      }
+
+      // 上传成功后设置素材信息
+      const materialConfig: MaterialConfig = {
+        url: uploadUrls.fileUrl,
+        filePath: uploadUrls.filePath,
+        fileType: file.type,
+        fileName: file.name,
+        fileSize: file.size,
+      };
+
+      // 如果是多素材中的某一项
+      if (currentUploadingField !== null) {
+        // 更新表单中对应字段的值
+        const displayConfig = form.getFieldValue('displayConfig') || [];
+        displayConfig[currentUploadingField] = {
+          ...displayConfig[currentUploadingField],
+          materialUrl: uploadUrls.fileUrl
+        };
+        form.setFieldValue('displayConfig', [...displayConfig]);
+        setCurrentUploadingField(null);
+      } else {
+        setUploadedMaterial(materialConfig);
+      }
+      
+      message.success('上传成功');
+      
+      // 清空文件列表
+      setFileList([]);
+    } catch (error: any) {
+      // 清除超时定时器
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      message.error(`上传失败: ${error.message}`);
+      
+      // 重置所有上传状态
+      resetFileUploadState();
+      
+      // 重置手动输入的视频URL（如果当前是视频且处于手动输入模式）
+      if (adType === 'popup_video' && isManualVideoUrl) {
+        setManualVideoUrl('');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // 当获取到预签名URL后自动执行上传
   useEffect(() => {
+    let isMounted = true;
+    
     const performUpload = async () => {
-      if (uploadUrls && fileList.length > 0 && !uploading) {
-        await handleUpload();
+      if (uploadUrls && fileList.length > 0 && !uploading && isMounted) {
+        try {
+          await handleUpload();
+        } catch (error) {
+          // 确保在出错时重置状态
+          if (isMounted) {
+            resetFileUploadState();
+            message.error('上传过程中发生错误，请重试');
+          }
+        }
       }
     };
 
     performUpload();
-  }, [uploadUrls]);
+    
+    // 清理函数
+    return () => {
+      isMounted = false;
+    };
+  }, [uploadUrls, fileList, uploading]);
 
   // 处理表单提交
   const handleSubmit = async (values: AdvertisementFormData) => {
@@ -225,105 +422,6 @@ const AdvertisementFormPage: React.FC = () => {
         targetUrl: undefined,
         materialConfig: undefined,
       });
-    }
-  };
-
-  // 获取上传URL
-  const handleBeforeUpload = async (file: File) => {
-    try {
-      setUploading(true);
-      setFileList([file]);
-      setCurrentUploadingField(null);
-      
-      const fileName = file.name;
-      const contentType = file.type;
-      
-      await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
-      return false; // 阻止自动上传
-    } catch (error) {
-      setUploading(false);
-      message.error('获取上传URL失败');
-      return false;
-    }
-  };
-  
-  // 获取上传URL (多素材)
-  const handleMultipleBeforeUpload = (fieldIndex: number) => {
-    return async (file: File) => {
-      try {
-        setUploading(true);
-        setFileList([file]);
-        setCurrentUploadingField(fieldIndex);
-        
-        const fileName = file.name;
-        const contentType = file.type;
-        
-        await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
-        return false; // 阻止自动上传
-      } catch (error) {
-        setUploading(false);
-        message.error('获取上传URL失败');
-        return false;
-      }
-    };
-  };
-
-  // 执行文件上传
-  const handleUpload = async () => {
-    if (!uploadUrls || fileList.length === 0) {
-      message.error('请先选择文件');
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const file = fileList[0];
-      
-      // 使用预签名URL上传文件
-      const response = await fetch(uploadUrls.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('上传失败');
-      }
-
-      // 上传成功后设置素材信息
-      const materialConfig: MaterialConfig = {
-        url: uploadUrls.fileUrl,
-        filePath: uploadUrls.filePath,
-        fileType: file.type,
-        fileName: file.name,
-        fileSize: file.size,
-      };
-
-      // 如果是多素材中的某一项
-      if (currentUploadingField !== null) {
-        // 更新表单中对应字段的值
-        const displayConfig = form.getFieldValue('displayConfig') || [];
-        displayConfig[currentUploadingField] = {
-          ...displayConfig[currentUploadingField],
-          materialUrl: uploadUrls.fileUrl
-        };
-        form.setFieldValue('displayConfig', [...displayConfig]);
-        setCurrentUploadingField(null);
-      } else {
-        setUploadedMaterial(materialConfig);
-      }
-      
-      message.success('上传成功');
-      
-      // 清空文件列表
-      setFileList([]);
-    } catch (error: any) {
-      message.error(`上传失败: ${error.message}`);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -521,6 +619,8 @@ const AdvertisementFormPage: React.FC = () => {
                   required
                 >
                   <Input 
+                    ref={singleMaterialInputRef}
+                    id="single-material-input"
                     placeholder="选择文件后自动上传" 
                     readOnly 
                     value={fileList.length > 0 ? fileList[0].name : ''}
@@ -529,7 +629,13 @@ const AdvertisementFormPage: React.FC = () => {
                         beforeUpload={handleBeforeUpload}
                         showUploadList={false}
                         maxCount={1}
-                        onChange={({ fileList }) => setFileList(fileList)}
+                        onChange={({ fileList }) => {
+                          if (fileList.length > 0) {
+                            setFileList(fileList);
+                          } else {
+                            setFileList([]);
+                          }
+                        }}
                       >
                         <Button 
                           size="small" 
