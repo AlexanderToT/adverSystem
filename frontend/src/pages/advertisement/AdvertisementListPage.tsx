@@ -146,7 +146,7 @@ const AdvertisementListPage: React.FC = () => {
             color = 'green';
             break;
           case 'strip_multiple_image':
-            label = '信息流多图';
+            label = 'Banner多图';
             color = 'orange';
             break;
         }
