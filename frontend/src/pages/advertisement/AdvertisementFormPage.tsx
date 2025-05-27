@@ -8,22 +8,18 @@ import {
   Select,
   Upload,
   Card,
-  message,
   Switch,
   Space,
-  Row,
-  Col,
   Tabs,
   Divider,
   Image,
   InputRef,
-  App
+  App,
 } from 'antd';
 import {
   PlusOutlined,
   UploadOutlined,
-  MinusCircleOutlined,
-  LoadingOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import { RootState } from '@/store';
 import {
@@ -31,34 +27,11 @@ import {
   createAdvertisement,
   updateAdvertisement,
   getMaterialUploadUrl,
-  clearUploadUrls,
+  clearUploadUrls
 } from '@/store/slices/advertisementSlice';
 import { getToken } from '@/utils/storage';
+import { getDictData } from '@/utils/dictHelper';
 
-const { Option } = Select;
-const { TextArea } = Input;
-
-// 广告类型选项
-const AD_TYPES = [
-  { value: 'popup_image', label: '弹窗图片' },
-  { value: 'popup_video', label: '弹窗视频' },
-  { value: 'banner_multiple_image', label: '横幅多图' },
-  { value: 'strip_multiple_image', label: '信息流多图' },
-];
-
-// 国家/地区选项
-const COUNTRY_OPTIONS = [
-  { value: 'CN', label: '中国' },
-  { value: 'US', label: '美国' },
-  { value: 'JP', label: '日本' },
-  { value: 'KR', label: '韩国' },
-  { value: 'GB', label: '英国' },
-  { value: 'DE', label: '德国' },
-  { value: 'FR', label: '法国' },
-  { value: 'IT', label: '意大利' },
-  { value: 'CA', label: '加拿大' },
-  { value: 'AU', label: '澳大利亚' },
-];
 
 // 定义广告表单数据接口
 interface AdvertisementFormData {
@@ -89,7 +62,7 @@ const AdvertisementFormPage: React.FC = () => {
   const singleMaterialInputRef = useRef<InputRef>(null);
   const { message } = App.useApp();
 
-  const { loading, currentAd, uploadLoading, uploadUrls } = useSelector(
+  const { loading, currentAd } = useSelector(
     (state: RootState) => state.advertisement
   );
   
@@ -98,11 +71,12 @@ const AdvertisementFormPage: React.FC = () => {
   const [adType, setAdType] = useState<string>('');
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [readyToUpload, setReadyToUpload] = useState(false);
   const [targetUrl, setTargetUrl] = useState<string>('');
   const [currentUploadingField, setCurrentUploadingField] = useState<number | null>(null);
   const [isManualVideoUrl, setIsManualVideoUrl] = useState(false);
   const [manualVideoUrl, setManualVideoUrl] = useState('');
+  const [countryOptions, setCountryOptions] = useState<{value: string, label: string}[]>([]);
+  const [adTypeOptions, setAdTypeOptions] = useState<{value: string, label: string}[]>([]);
 
   const isEdit = !!id;
 
@@ -112,6 +86,82 @@ const AdvertisementFormPage: React.FC = () => {
       dispatch(fetchAdvertisementById(id) as any);
     }
   }, [dispatch, isEdit, id]);
+
+  // 加载广告类型选项
+  useEffect(() => {
+    const loadAdTypeOptions = async () => {
+      try {
+        // 从'adTypes'字典中获取广告类型选项
+        const adTypes = await getDictData('ADTYPES', true);
+        if (adTypes && adTypes.length > 0) {
+          const options = adTypes.map(item => ({
+            value: item.dictValue,
+            label: item.dictLabel
+          }));
+          setAdTypeOptions(options);
+        } else {
+          console.warn('未找到广告类型字典数据，使用默认值');
+          // 如果没有字典数据，使用默认值
+          setAdTypeOptions([
+            { value: 'popup_image', label: '弹窗图片' },
+            { value: 'popup_video', label: '弹窗视频' },
+            { value: 'banner_multiple_image', label: '横幅多图' },
+            { value: 'strip_multiple_image', label: '信息流多图' }
+          ]);
+        }
+      } catch (error) {
+        console.error('加载广告类型字典数据失败:', error);
+        // 发生错误时使用默认值
+        setAdTypeOptions([
+          { value: 'popup_image', label: '弹窗图片' },
+          { value: 'popup_video', label: '弹窗视频' },
+          { value: 'banner_multiple_image', label: '横幅多图' },
+          { value: 'strip_multiple_image', label: '信息流多图' }
+        ]);
+      }
+    };
+
+    loadAdTypeOptions();
+  }, []);
+
+  // 加载国家选项
+  useEffect(() => {
+    const loadCountryOptions = async () => {
+      try {
+        // 尝试从'countryType'字典中获取国家选项
+        const countries = await getDictData('country', true);
+        if (countries && countries.length > 0) {
+          const options = countries.map(item => ({
+            value: item.dictValue,
+            label: item.dictLabel
+          }));
+          setCountryOptions(options);
+        } else {
+          console.warn('未找到国家字典数据，使用默认值');
+          // 如果没有字典数据，使用默认值
+          setCountryOptions([
+            { value: 'CN', label: '中国' },
+            { value: 'US', label: '美国' },
+            { value: 'JP', label: '日本' },
+            { value: 'KR', label: '韩国' },
+            { value: 'GB', label: '英国' }
+          ]);
+        }
+      } catch (error) {
+        console.error('加载国家字典数据失败:', error);
+        // 发生错误时使用默认值
+        setCountryOptions([
+          { value: 'CN', label: '中国' },
+          { value: 'US', label: '美国' },
+          { value: 'JP', label: '日本' },
+          { value: 'KR', label: '韩国' },
+          { value: 'GB', label: '英国' }
+        ]);
+      }
+    };
+
+    loadCountryOptions();
+  }, []);
 
   // 当编辑模式且广告数据加载完成时，填充表单
   useEffect(() => {
@@ -459,68 +509,50 @@ const AdvertisementFormPage: React.FC = () => {
   const renderBasicInfoForm = () => {
     return (
       <>
-        <Row gutter={24}>
-          <Col span={12}>
-            <Form.Item
-              label="广告名称"
-              name="name"
-              rules={[{ required: true, message: '请输入广告名称' }]}
-            >
-              <Input placeholder="请输入广告名称" />
-            </Form.Item>
-          </Col>
-          
-          <Col span={12}>
-            <Form.Item
-              label="广告类型"
-              name="adType"
-              rules={[{ required: true, message: '请选择广告类型' }]}
-            >
-              <Select 
-                placeholder="请选择广告类型" 
-                onChange={handleAdTypeChange}
-                disabled={isEdit} // 编辑时不允许修改类型
-              >
-                {AD_TYPES.map(type => (
-                  <Option key={type.value} value={type.value}>
-                    {type.label}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
+        <Form.Item
+          label="广告名称"
+          name="name"
+          rules={[{ required: true, message: '请输入广告名称!' }]}
+        >
+          <Input placeholder="请输入广告名称" />
+        </Form.Item>
 
-        <Row gutter={24}>
-          <Col span={12}>
-            <Form.Item
-              label="目标国家/地区"
-              name="countryCodes"
-            >
-              <Select 
-                placeholder="请选择目标国家/地区" 
-                mode="multiple" 
-                allowClear
-              >
-                {COUNTRY_OPTIONS.map(country => (
-                  <Option key={country.value} value={country.value}>
-                    {country.label}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          
-          <Col span={12}>
-            <Form.Item
-              label="是否显示"
-              name="isDisplayed"
-              valuePropName="checked"
-            >
-              <Switch checkedChildren="是" unCheckedChildren="否" />
-            </Form.Item>
-          </Col>
-        </Row>
+        <Form.Item
+          label="广告类型"
+          name="adType"
+          rules={[{ required: true, message: '请选择广告类型!' }]}
+        >
+          <Select 
+            placeholder="请选择广告类型"
+            onChange={handleAdTypeChange}
+            options={adTypeOptions}
+            disabled={isEdit} // 编辑时不允许修改类型
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="投放国家/地区"
+          name="countryCodes"
+        >
+          <Select
+            mode="multiple"
+            placeholder="请选择投放的国家/地区"
+            options={countryOptions}
+            showSearch
+            optionFilterProp="label"
+            allowClear
+          />
+        </Form.Item>
+
+
+        <Form.Item
+          label="是否投放"
+          name="isDisplayed"
+          valuePropName="checked"
+          initialValue={true}
+        >
+          <Switch />
+        </Form.Item>
       </>
     );
   };
@@ -528,10 +560,13 @@ const AdvertisementFormPage: React.FC = () => {
   // 渲染素材配置表单
   const renderMaterialConfigForm = () => {
     if (adType === 'popup_image' || adType === 'popup_video') {
+      // 从选项中查找当前类型的标签
+      const adTypeLabel = adTypeOptions.find(t => t.value === adType)?.label || adType;
+      
       return (
         <div>
           <h3>单素材上传</h3>
-          <p>当前广告类型: {AD_TYPES.find(t => t.value === adType)?.label}</p>
+          <p>当前广告类型: {adTypeLabel}</p>
           
           {uploadedMaterial ? (
             <div style={{ marginBottom: 16 }}>
