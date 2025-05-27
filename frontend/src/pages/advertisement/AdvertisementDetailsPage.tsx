@@ -62,7 +62,7 @@ const AdvertisementDetailsPage: React.FC = () => {
 
     return (
       <>
-        <Descriptions bordered column={2} size="middle">
+        <Descriptions bordered={true} column={2} size="middle">
           <Descriptions.Item label="广告名称" span={2}>{currentAd.name}</Descriptions.Item>
           <Descriptions.Item label="广告类型">{getAdTypeName(currentAd.adType)}</Descriptions.Item>
           <Descriptions.Item label="状态">

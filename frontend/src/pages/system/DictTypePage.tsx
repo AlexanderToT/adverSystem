@@ -243,7 +243,7 @@ const DictTypePage: React.FC = () => {
         <h2>字典类型管理</h2>
       </div>
 
-      <Card bordered={false}>
+      <Card variant="borderless">
         {/* 查询表单 */}
         <Form
           form={form}
@@ -322,7 +322,7 @@ const DictTypePage: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={() => setModalVisible(false)}
-        destroyOnClose
+        destroyOnHidden
         maskClosable={false}
       >
         <Form

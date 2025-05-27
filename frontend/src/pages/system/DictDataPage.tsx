@@ -291,14 +291,14 @@ const DictDataPage: React.FC = () => {
       </div>
 
       {loadingTypes && !currentDictType ? (
-        <Card bordered={false}>
+        <Card variant="borderless">
           <div style={{ textAlign: 'center', padding: '50px' }}>
             <Spin size="large" />
             <p>正在加载字典类型信息...</p>
           </div>
         </Card>
       ) : (
-        <Card bordered={false}>
+        <Card variant="borderless">
           {/* 查询表单 */}
           <Form
             form={form}
@@ -373,7 +373,7 @@ const DictDataPage: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={() => setModalVisible(false)}
-        destroyOnClose
+        destroyOnHidden
         maskClosable={false}
         width={600}
       >
