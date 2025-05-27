@@ -20,7 +20,9 @@
         "react-redux": "^9.0.4",
         "react-router-dom": "^6.21.1",
         "date-fns": "^2.30.0",
-        "zod": "^3.22.4"
+        "zod": "^3.22.4",
+        "@splinetool/react-spline": "^4.0.0",
+        "@splinetool/runtime": "^1.9.96"
     },
     "devDependencies": {
         "@types/node": "^20.11.0",
