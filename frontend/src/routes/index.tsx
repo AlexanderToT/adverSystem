@@ -1,6 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import AuthGuard from '@/components/AuthGuard';
+import AdminLayout from '@/layouts/AdminLayout';
 
 // 页面组件
 import LoginPage from '@/pages/account/LoginPage';
@@ -18,17 +20,31 @@ const AppRoutes: React.FC = () => {
       {/* 公开路由 */}
       <Route path="/login" element={<LoginPage />} />
       
-      {/* 需要认证的路由 */}
-      <Route path="/account/list" element={<AuthGuard><AccountListPage /></AuthGuard>} />
+      {/* 使用二级路由统一所有需要认证的页面 */}
+      <Route 
+        path="/" 
+        element={
+          <AuthGuard>
+            <AdminLayout>
+              <Outlet />
+            </AdminLayout>
+          </AuthGuard>
+        }
+      >
+        {/* 默认路由 */}
+        <Route index element={<Navigate to="/account/list" replace />} />
+        
+        {/* 账号管理路由 */}
+        <Route path="account/list" element={<AccountListPage />} />
+        
+        {/* 广告管理路由 */}
+        <Route path="advertisements" element={<AdvertisementListPage />} />
+        <Route path="advertisements/new" element={<AdvertisementFormPage />} />
+        <Route path="advertisements/:id" element={<AdvertisementDetailsPage />} />
+        <Route path="advertisements/:id/edit" element={<AdvertisementFormPage />} />
+      </Route>
       
-      {/* 广告管理路由 */}
-      <Route path="/advertisements" element={<AuthGuard><AdvertisementListPage /></AuthGuard>} />
-      <Route path="/advertisements/new" element={<AuthGuard><AdvertisementFormPage /></AuthGuard>} />
-      <Route path="/advertisements/:id" element={<AuthGuard><AdvertisementDetailsPage /></AuthGuard>} />
-      <Route path="/advertisements/:id/edit" element={<AuthGuard><AdvertisementFormPage /></AuthGuard>} />
-      
-      {/* 默认重定向到账号列表 */}
-      <Route path="/" element={<Navigate to="/account/list" replace />} />
+      {/* 通配符路由 */}
       <Route path="*" element={<Navigate to="/account/list" replace />} />
     </Routes>
   );

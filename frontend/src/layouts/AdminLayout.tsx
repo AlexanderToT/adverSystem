@@ -42,14 +42,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const pathNameMap: Record<string, string> = {
       'account': '账号管理',
       'list': '列表',
-      'application': '应用管理',
-      'advertisement': '广告管理',
+      'advertisements': '广告管理',
+      'new': '新增',
       'edit': '编辑',
-      'create': '新增',
-      'detail': '详情',
+      'application': '应用管理',
     };
     
-    const chinesePaths = paths.map(path => pathNameMap[path] || path);
+    const chinesePaths = paths.map(path => {
+      // 检查是否是ID形式的路径段（针对详情页、编辑页等）
+      if (path.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return '详情';
+      }
+      return pathNameMap[path] || path;
+    });
     setBreadcrumbs(chinesePaths);
   }, [location]);
 
@@ -78,13 +83,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       ],
     },
     {
-      key: 'advertisement',
+      key: 'advertisements',
       icon: <PictureOutlined />,
       label: '广告管理',
       children: [
         {
-          key: 'advertisement/list',
+          key: 'advertisements',
           label: '广告列表',
+        },
+        {
+          key: 'advertisements/new',
+          label: '新建广告',
         },
       ],
     },
@@ -126,8 +135,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <Menu
           theme="light"
           mode="inline"
-          defaultSelectedKeys={['account/list']}
-          defaultOpenKeys={['account']}
+          selectedKeys={[location.pathname.substring(1)]}
+          defaultOpenKeys={['account', 'advertisements', 'application']}
           onClick={handleMenuClick}
           items={menuItems}
         />

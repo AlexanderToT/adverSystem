@@ -31,7 +31,7 @@ const AdvertisementDetailsPage: React.FC = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/admin/advertisements/${id}/edit`);
+    navigate(`/advertisements/${id}/edit`);
   };
 
   const renderContent = () => {
@@ -125,7 +125,7 @@ const AdvertisementDetailsPage: React.FC = () => {
           <Space>
             <Button 
               icon={<ArrowLeftOutlined />} 
-              onClick={() => navigate('/admin/advertisements')}
+              onClick={() => navigate('/advertisements')}
             >
               返回列表
             </Button>

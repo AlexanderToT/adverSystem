@@ -4,7 +4,6 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-d
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { fetchUsers, addUser, editUser, removeUser, modifyPassword } from '@/store/slices/userSlice';
 import { fetchRoles } from '@/store/slices/roleSlice';
-import AdminLayout from '@/layouts/AdminLayout';
 import { User, CreateUserRequest, UpdateUserRequest } from '@/types';
 import styles from './AccountListPage.module.less';
 
@@ -233,7 +232,7 @@ const AccountListPage: React.FC = () => {
   ];
 
   return (
-    <AdminLayout>
+    <>
       {contextHolder}
       <div className={styles.pageHeader}>
         <h2>账号管理</h2>
@@ -392,7 +391,7 @@ const AccountListPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </AdminLayout>
+    </>
   );
 };
 

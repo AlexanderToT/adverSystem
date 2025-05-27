@@ -121,7 +121,7 @@ const AdvertisementListPage: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: Advertisement) => (
-        <a onClick={() => navigate(`/admin/advertisements/${record.id}`)}>{text}</a>
+        <a onClick={() => navigate(`/advertisements/${record.id}`)}>{text}</a>
       )
     },
     {
@@ -200,13 +200,13 @@ const AdvertisementListPage: React.FC = () => {
           <Button 
             icon={<EyeOutlined />} 
             size="small" 
-            onClick={() => navigate(`/admin/advertisements/${record.id}`)}
+            onClick={() => navigate(`/advertisements/${record.id}`)}
             title="查看详情"
           />
           <Button 
             icon={<EditOutlined />} 
             size="small" 
-            onClick={() => navigate(`/admin/advertisements/${record.id}/edit`)}
+            onClick={() => navigate(`/advertisements/${record.id}/edit`)}
             type="primary"
             title="编辑"
           />
@@ -300,7 +300,7 @@ const AdvertisementListPage: React.FC = () => {
           <Button 
             type="primary" 
             icon={<PlusOutlined />}
-            onClick={() => navigate('/admin/advertisements/new')}
+            onClick={() => navigate('/advertisements/new')}
           >
             新建广告
           </Button>
