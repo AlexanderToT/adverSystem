@@ -79,7 +79,7 @@ export const auth = (options?: { allowedRoles?: string[] }) => {
       await next();
     } catch (err) {
       console.log(`[Auth-Unified] 令牌验证失败:`, err);
-      return error(c, '无效的令牌', 401, 401);
+      return error(c, '无效的令牌', 401, 200);
     }
   };
 }; 

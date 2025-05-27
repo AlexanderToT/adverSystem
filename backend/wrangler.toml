@@ -30,6 +30,6 @@ vars = { NODE_ENV = "production" }
 
 # R2配置 (用于文件存储)
 # [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "adver-admin-storage"
-# preview_bucket_name = "adver-admin-storage-dev" 
+binding = "STORAGE"
+bucket_name = "adver-admin-storage"
+preview_bucket_name = "adver-admin-storage-dev" 
