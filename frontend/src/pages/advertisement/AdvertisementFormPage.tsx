@@ -30,7 +30,6 @@ import {
   getMaterialUploadUrl,
 } from '@/store/slices/advertisementSlice';
 
-const { TabPane } = Tabs;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -39,7 +38,7 @@ const AD_TYPES = [
   { value: 'popup_image', label: '弹窗图片' },
   { value: 'popup_video', label: '弹窗视频' },
   { value: 'banner_multiple_image', label: '横幅多图' },
-  { value: 'strip_multiple_image', label: 'Banner多图' },
+  { value: 'strip_multiple_image', label: '信息流多图' },
 ];
 
 // 国家/地区选项
@@ -173,7 +172,7 @@ const AdvertisementFormPage: React.FC = () => {
         await dispatch(createAdvertisement(formData) as any);
         message.success('广告创建成功');
       }
-      navigate('/admin/advertisements');
+      navigate('/advertisements');
     } catch (error: any) {
       message.error(`提交失败: ${error.message}`);
     }
@@ -255,6 +254,249 @@ const AdvertisementFormPage: React.FC = () => {
     }
   };
 
+  // 渲染基本信息表单
+  const renderBasicInfoForm = () => {
+    return (
+      <>
+        <Row gutter={24}>
+          <Col span={12}>
+            <Form.Item
+              label="广告名称"
+              name="name"
+              rules={[{ required: true, message: '请输入广告名称' }]}
+            >
+              <Input placeholder="请输入广告名称" />
+            </Form.Item>
+          </Col>
+          
+          <Col span={12}>
+            <Form.Item
+              label="广告类型"
+              name="adType"
+              rules={[{ required: true, message: '请选择广告类型' }]}
+            >
+              <Select 
+                placeholder="请选择广告类型" 
+                onChange={handleAdTypeChange}
+                disabled={isEdit} // 编辑时不允许修改类型
+              >
+                {AD_TYPES.map(type => (
+                  <Option key={type.value} value={type.value}>
+                    {type.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={24}>
+          <Col span={12}>
+            <Form.Item
+              label="目标国家/地区"
+              name="countryCodes"
+            >
+              <Select 
+                placeholder="请选择目标国家/地区" 
+                mode="multiple" 
+                allowClear
+              >
+                {COUNTRY_OPTIONS.map(country => (
+                  <Option key={country.value} value={country.value}>
+                    {country.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          
+          <Col span={12}>
+            <Form.Item
+              label="是否显示"
+              name="isDisplayed"
+              valuePropName="checked"
+            >
+              <Switch checkedChildren="是" unCheckedChildren="否" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        {/* 弹窗广告的目标URL */}
+        {(adType === 'popup_image' || adType === 'popup_video') && (
+          <Form.Item
+            label="目标URL"
+            name="targetUrl"
+            rules={[
+              adType === 'popup_image' 
+                ? { required: true, message: '请输入目标URL' } 
+                : {}
+            ]}
+          >
+            <Input placeholder="请输入广告点击后跳转的URL" />
+          </Form.Item>
+        )}
+      </>
+    );
+  };
+
+  // 渲染素材配置表单
+  const renderMaterialConfigForm = () => {
+    if (adType === 'popup_image' || adType === 'popup_video') {
+      return (
+        <div>
+          <h3>单素材上传</h3>
+          <p>当前广告类型: {AD_TYPES.find(t => t.value === adType)?.label}</p>
+          
+          {uploadedMaterial ? (
+            <div style={{ marginBottom: 16 }}>
+              <p>已上传素材:</p>
+              <div style={{ border: '1px solid #eee', padding: '10px', borderRadius: '4px' }}>
+                <p>文件名: {uploadedMaterial.fileName || '未知'}</p>
+                <p>文件类型: {uploadedMaterial.fileType || '未知'}</p>
+                <p>
+                  URL: <a href={uploadedMaterial.url} target="_blank" rel="noopener noreferrer">
+                    {uploadedMaterial.url || '未知'}
+                  </a>
+                </p>
+                {uploadedMaterial.fileType?.startsWith('image/') && (
+                  <div style={{ marginTop: 10 }}>
+                    <img 
+                      src={uploadedMaterial.url} 
+                      alt="素材预览" 
+                      style={{ maxWidth: '300px', maxHeight: '200px' }} 
+                    />
+                  </div>
+                )}
+              </div>
+              <Button 
+                style={{ marginTop: 10 }} 
+                onClick={() => setUploadedMaterial(null)}
+              >
+                重新上传
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Upload
+                beforeUpload={handleBeforeUpload}
+                fileList={fileList}
+                onChange={({ fileList }) => setFileList(fileList)}
+                maxCount={1}
+              >
+                <Button icon={<UploadOutlined />}>选择文件</Button>
+              </Upload>
+              <Button
+                type="primary"
+                onClick={handleUpload}
+                disabled={fileList.length === 0 || !uploadUrls}
+                loading={uploading}
+                style={{ marginTop: 16 }}
+              >
+                {uploading ? '上传中' : '开始上传'}
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    } else if (adType === 'banner_multiple_image' || adType === 'strip_multiple_image') {
+      return (
+        <div>
+          <h3>多素材配置</h3>
+          <p>针对横幅或信息流广告，可配置多个素材及其对应的目标URL</p>
+          
+          <Form.List name="displayConfig">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Card 
+                    key={key} 
+                    style={{ marginBottom: 16 }} 
+                    type="inner"
+                    extra={
+                      <MinusCircleOutlined onClick={() => remove(name)} />
+                    }
+                    title={`素材项 #${name + 1}`}
+                  >
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'materialUrl']}
+                      label="素材URL"
+                      rules={[{ required: true, message: '请输入素材URL' }]}
+                    >
+                      <Input placeholder="请输入素材图片的URL" />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'targetUrl']}
+                      label="目标URL"
+                      rules={[{ required: true, message: '请输入目标URL' }]}
+                    >
+                      <Input placeholder="请输入点击后跳转的URL" />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'title']}
+                      label="标题(可选)"
+                    >
+                      <Input placeholder="请输入素材标题" />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'description']}
+                      label="描述(可选)"
+                    >
+                      <TextArea placeholder="请输入素材描述" rows={2} />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'order']}
+                      label="排序(可选)"
+                    >
+                      <Input type="number" placeholder="数字越小越靠前" />
+                    </Form.Item>
+                  </Card>
+                ))}
+                
+                <Form.Item>
+                  <Button 
+                    type="dashed" 
+                    onClick={() => add({ order: fields.length + 1 })} 
+                    block 
+                    icon={<PlusOutlined />}
+                  >
+                    添加素材项
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+        </div>
+      );
+    } else {
+      return (
+        <div>请先在"基本信息"标签页选择广告类型</div>
+      );
+    }
+  };
+
+  // 标签页配置项
+  const tabItems = [
+    {
+      key: '1',
+      label: '基本信息',
+      children: renderBasicInfoForm()
+    },
+    {
+      key: '2',
+      label: '素材配置',
+      children: renderMaterialConfigForm()
+    }
+  ];
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -270,224 +512,11 @@ const AdvertisementFormPage: React.FC = () => {
             countryCodes: [],
           }}
         >
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane tab="基本信息" key="1">
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item
-                    label="广告名称"
-                    name="name"
-                    rules={[{ required: true, message: '请输入广告名称' }]}
-                  >
-                    <Input placeholder="请输入广告名称" />
-                  </Form.Item>
-                </Col>
-                
-                <Col span={12}>
-                  <Form.Item
-                    label="广告类型"
-                    name="adType"
-                    rules={[{ required: true, message: '请选择广告类型' }]}
-                  >
-                    <Select 
-                      placeholder="请选择广告类型" 
-                      onChange={handleAdTypeChange}
-                      disabled={isEdit} // 编辑时不允许修改类型
-                    >
-                      {AD_TYPES.map(type => (
-                        <Option key={type.value} value={type.value}>
-                          {type.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item
-                    label="目标国家/地区"
-                    name="countryCodes"
-                  >
-                    <Select 
-                      placeholder="请选择目标国家/地区" 
-                      mode="multiple" 
-                      allowClear
-                    >
-                      {COUNTRY_OPTIONS.map(country => (
-                        <Option key={country.value} value={country.value}>
-                          {country.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                
-                <Col span={12}>
-                  <Form.Item
-                    label="是否显示"
-                    name="isDisplayed"
-                    valuePropName="checked"
-                  >
-                    <Switch checkedChildren="是" unCheckedChildren="否" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              {/* 弹窗广告的目标URL */}
-              {(adType === 'popup_image' || adType === 'popup_video') && (
-                <Form.Item
-                  label="目标URL"
-                  name="targetUrl"
-                  rules={[
-                    adType === 'popup_image' 
-                      ? { required: true, message: '请输入目标URL' } 
-                      : {}
-                  ]}
-                >
-                  <Input placeholder="请输入广告点击后跳转的URL" />
-                </Form.Item>
-              )}
-            </TabPane>
-            
-            <TabPane tab="素材配置" key="2">
-              {(adType === 'popup_image' || adType === 'popup_video') ? (
-                <div>
-                  <h3>单素材上传</h3>
-                  <p>当前广告类型: {AD_TYPES.find(t => t.value === adType)?.label}</p>
-                  
-                  {uploadedMaterial ? (
-                    <div style={{ marginBottom: 16 }}>
-                      <p>已上传素材:</p>
-                      <div style={{ border: '1px solid #eee', padding: '10px', borderRadius: '4px' }}>
-                        <p>文件名: {uploadedMaterial.fileName || '未知'}</p>
-                        <p>文件类型: {uploadedMaterial.fileType || '未知'}</p>
-                        <p>
-                          URL: <a href={uploadedMaterial.url} target="_blank" rel="noopener noreferrer">
-                            {uploadedMaterial.url || '未知'}
-                          </a>
-                        </p>
-                        {uploadedMaterial.fileType?.startsWith('image/') && (
-                          <div style={{ marginTop: 10 }}>
-                            <img 
-                              src={uploadedMaterial.url} 
-                              alt="素材预览" 
-                              style={{ maxWidth: '300px', maxHeight: '200px' }} 
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <Button 
-                        style={{ marginTop: 10 }} 
-                        onClick={() => setUploadedMaterial(null)}
-                      >
-                        重新上传
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload
-                        beforeUpload={handleBeforeUpload}
-                        fileList={fileList}
-                        onChange={({ fileList }) => setFileList(fileList)}
-                        maxCount={1}
-                      >
-                        <Button icon={<UploadOutlined />}>选择文件</Button>
-                      </Upload>
-                      <Button
-                        type="primary"
-                        onClick={handleUpload}
-                        disabled={fileList.length === 0 || !uploadUrls}
-                        loading={uploading}
-                        style={{ marginTop: 16 }}
-                      >
-                        {uploading ? '上传中' : '开始上传'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (adType === 'banner_multiple_image' || adType === 'strip_multiple_image') ? (
-                <div>
-                  <h3>多素材配置</h3>
-                  <p>针对横幅或信息流广告，可配置多个素材及其对应的目标URL</p>
-                  
-                  <Form.List name="displayConfig">
-                    {(fields, { add, remove }) => (
-                      <>
-                        {fields.map(({ key, name, ...restField }) => (
-                          <Card 
-                            key={key} 
-                            style={{ marginBottom: 16 }} 
-                            type="inner"
-                            extra={
-                              <MinusCircleOutlined onClick={() => remove(name)} />
-                            }
-                            title={`素材项 #${name + 1}`}
-                          >
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'materialUrl']}
-                              label="素材URL"
-                              rules={[{ required: true, message: '请输入素材URL' }]}
-                            >
-                              <Input placeholder="请输入素材图片的URL" />
-                            </Form.Item>
-                            
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'targetUrl']}
-                              label="目标URL"
-                              rules={[{ required: true, message: '请输入目标URL' }]}
-                            >
-                              <Input placeholder="请输入点击后跳转的URL" />
-                            </Form.Item>
-                            
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'title']}
-                              label="标题(可选)"
-                            >
-                              <Input placeholder="请输入素材标题" />
-                            </Form.Item>
-                            
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'description']}
-                              label="描述(可选)"
-                            >
-                              <TextArea placeholder="请输入素材描述" rows={2} />
-                            </Form.Item>
-                            
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'order']}
-                              label="排序(可选)"
-                            >
-                              <Input type="number" placeholder="数字越小越靠前" />
-                            </Form.Item>
-                          </Card>
-                        ))}
-                        
-                        <Form.Item>
-                          <Button 
-                            type="dashed" 
-                            onClick={() => add({ order: fields.length + 1 })} 
-                            block 
-                            icon={<PlusOutlined />}
-                          >
-                            添加素材项
-                          </Button>
-                        </Form.Item>
-                      </>
-                    )}
-                  </Form.List>
-                </div>
-              ) : (
-                <div>请先在"基本信息"标签页选择广告类型</div>
-              )}
-            </TabPane>
-          </Tabs>
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            items={tabItems}
+          />
           
           <Divider />
           
@@ -496,7 +525,7 @@ const AdvertisementFormPage: React.FC = () => {
               <Button type="primary" htmlType="submit" loading={loading}>
                 {isEdit ? '更新广告' : '创建广告'}
               </Button>
-              <Button onClick={() => navigate('/admin/advertisements')}>取消</Button>
+              <Button onClick={() => navigate('/advertisements')}>取消</Button>
             </Space>
           </Form.Item>
         </Form>
