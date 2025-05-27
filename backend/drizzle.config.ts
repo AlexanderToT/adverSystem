@@ -31,14 +31,10 @@ export default defineConfig({
   dbCredentials: {
     url: getDatabaseUrl(),
   },
-  // 只处理这3个表
-  tablesFilter: [
-    "accounts",
-    "users",
-    "applications"
-  ],
+  
   // 是否严格模式，严格模式会在执行迁移前进行更严格的检查
-  strict: true,
+  strict: false, // 设为false以允许更宽松的迁移
   // 是否打印详细日志
   verbose: true,
+  // 使用pushFlags替代driver配置，设置迁移选项
 }); 

@@ -8,6 +8,7 @@ import {
   PictureOutlined,
   SettingOutlined,
   LogoutOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/store/slices/authSlice';
@@ -46,6 +47,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       'new': '新增',
       'edit': '编辑',
       'application': '应用管理',
+      'system': '系统管理',
+      'dict-type': '字典类型',
+      'dict-data': '字典数据',
     };
     
     const chinesePaths = paths.map(path => {
@@ -63,6 +67,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const path = location.pathname.substring(1);
     if (path === 'advertisements') return ['advertisements/list'];
     if (path === '') return ['account/list']; // 根路径默认选中账号列表
+    
+    // 处理字典数据路径，需要转换为字典类型菜单项
+    if (path.startsWith('system/dict-data/')) return ['system/dict-type'];
+    
     return [path];
   };
 
@@ -105,6 +113,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         },
       ],
     },
+    {
+      key: 'system',
+      icon: <SettingOutlined />,
+      label: '系统管理',
+      children: [
+        {
+          key: 'system/dict-type',
+          icon: <DatabaseOutlined />,
+          label: '数据字典',
+        },
+      ],
+    },
   ];
   
   // 处理菜单点击
@@ -144,7 +164,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           theme="light"
           mode="inline"
           selectedKeys={getSelectedKeys()}
-          defaultOpenKeys={['account', 'advertisements', 'application']}
+          defaultOpenKeys={['account', 'advertisements', 'application', 'system']}
           onClick={handleMenuClick}
           items={menuItems}
         />

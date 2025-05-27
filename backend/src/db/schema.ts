@@ -2,6 +2,33 @@ import { pgTable, uuid, varchar, boolean, timestamp, text, jsonb, bigint, serial
 import { relations } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 
+// 数据字典类型表
+export const dictTypes = pgTable('sys_dict_types', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  dictName: varchar('dict_name', { length: 100 }).notNull(), // 字典名称
+  dictType: varchar('dict_type', { length: 100 }).notNull().unique(), // 字典类型（唯一）
+  status: varchar('status', { length: 10 }).default('normal').notNull(), // 状态（normal正常 disabled停用）
+  remark: text('remark'), // 备注
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 数据字典数据表
+export const dictData = pgTable('sys_dict_data', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  dictTypeId: uuid('dict_type_id').notNull().references(() => dictTypes.id, { onDelete: 'cascade' }), // 字典类型ID
+  dictLabel: varchar('dict_label', { length: 100 }).notNull(), // 字典标签
+  dictValue: varchar('dict_value', { length: 100 }).notNull(), // 字典键值
+  dictSort: bigint('dict_sort', { mode: 'number' }).default(0), // 字典排序
+  cssClass: varchar('css_class', { length: 100 }), // 样式属性
+  listClass: varchar('list_class', { length: 100 }), // 表格回显样式
+  isDefault: boolean('is_default').default(false), // 是否默认
+  status: varchar('status', { length: 10 }).default('normal').notNull(), // 状态（normal正常 disabled停用）
+  remark: text('remark'), // 备注
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // 用户表
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -73,5 +100,17 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
   role: one(roles, {
     fields: [userRoles.roleId],
     references: [roles.id],
+  }),
+}));
+
+// 数据字典关联
+export const dictTypesRelations = relations(dictTypes, ({ many }) => ({
+  dictData: many(dictData),
+}));
+
+export const dictDataRelations = relations(dictData, ({ one }) => ({
+  dictType: one(dictTypes, {
+    fields: [dictData.dictTypeId],
+    references: [dictTypes.id],
   }),
 })); 

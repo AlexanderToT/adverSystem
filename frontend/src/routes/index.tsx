@@ -10,6 +10,8 @@ import AccountListPage from '@/pages/account/AccountListPage';
 import AdvertisementListPage from '@/pages/advertisement/AdvertisementListPage';
 import AdvertisementFormPage from '@/pages/advertisement/AdvertisementFormPage';
 import AdvertisementDetailsPage from '@/pages/advertisement/AdvertisementDetailsPage';
+import DictTypePage from '@/pages/system/DictTypePage';
+import DictDataPage from '@/pages/system/DictDataPage';
 
 /**
  * 应用路由配置
@@ -42,6 +44,10 @@ const AppRoutes: React.FC = () => {
         <Route path="advertisements/new" element={<AdvertisementFormPage />} />
         <Route path="advertisements/:id" element={<AdvertisementDetailsPage />} />
         <Route path="advertisements/:id/edit" element={<AdvertisementFormPage />} />
+        
+        {/* 系统管理-数据字典路由 */}
+        <Route path="system/dict-type" element={<DictTypePage />} />
+        <Route path="system/dict-data/:dictTypeId" element={<DictDataPage />} />
       </Route>
       
       {/* 通配符路由 */}

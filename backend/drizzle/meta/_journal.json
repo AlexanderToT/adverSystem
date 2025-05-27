@@ -15,6 +15,13 @@
       "when": 1748314506777,
       "tag": "0001_worried_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748334794242,
+      "tag": "0002_square_the_initiative",
+      "breakpoints": true
     }
   ]
 }

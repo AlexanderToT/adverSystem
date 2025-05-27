@@ -5,6 +5,7 @@ import { loggerMiddleware } from './middleware/logger.middleware';
 import { responseMiddleware } from './middleware/response.middleware';
 import { dbMiddleware } from './middleware/db.middleware';
 import apiRouter from './routes';
+import { initSystemDictionaries } from './services/dict.service';
 
 // 创建Hono应用实例
 const app = new Hono();
@@ -42,5 +43,16 @@ app.onError((err, c) => {
     message: err.message || '服务器内部错误'
   }, 500);
 });
+
+// 初始化系统字典数据
+(async () => {
+  try {
+    console.log('开始初始化系统字典数据...');
+    await initSystemDictionaries();
+    console.log('系统字典数据初始化完成');
+  } catch (error) {
+    console.error('系统字典数据初始化失败:', error);
+  }
+})();
 
 export default app; 
