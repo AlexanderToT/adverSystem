@@ -16,7 +16,8 @@ import {
   Tabs,
   Divider,
   Image,
-  InputRef
+  InputRef,
+  App
 } from 'antd';
 import {
   PlusOutlined,
@@ -86,6 +87,7 @@ const AdvertisementFormPage: React.FC = () => {
   const dispatch = useDispatch();
   const [form] = Form.useForm();
   const singleMaterialInputRef = useRef<InputRef>(null);
+  const { message } = App.useApp();
 
   const { loading, currentAd, uploadLoading, uploadUrls } = useSelector(
     (state: RootState) => state.advertisement
@@ -210,38 +212,6 @@ const AdvertisementFormPage: React.FC = () => {
     setCurrentUploadingField(null);
   };
 
-  // 获取上传URL
-  const handleBeforeUpload = async (file: File) => {
-    try {
-      setFileList([file]);
-      setCurrentUploadingField(null);
-      
-      const fileName = file.name;
-      const contentType = file.type;
-      console.log('开始获取上传URL, 文件:', fileName, '类型:', contentType);
-      
-      // 清除之前的状态
-      dispatch(clearUploadUrls());
-      
-      // 获取上传URL
-      const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
-      
-      // 检查dispatch结果是否有错误
-      if (result.error) {
-        resetFileUploadState();
-        throw new Error(result.error.message || '获取上传URL失败');
-      }
-      
-      console.log('获取上传URL成功', result);
-      return false; // 阻止自动上传
-    } catch (error: any) {
-      // 重置所有状态
-      resetFileUploadState();
-      message.error(`获取上传URL失败: ${error.message}`);
-      return false;
-    }
-  };
-  
   // 获取上传URL (多素材)
   const handleMultipleBeforeUpload = (fieldIndex: number) => {
     return async (file: File) => {
@@ -266,6 +236,13 @@ const AdvertisementFormPage: React.FC = () => {
         }
         
         console.log('获取多素材上传URL成功', result);
+        
+        // 直接执行上传，不依赖useEffect
+        if (result.payload) {
+          // 立即调用上传函数
+          await handleDirectUpload(file, result.payload, fieldIndex);
+        }
+        
         return false; // 阻止自动上传
       } catch (error: any) {
         // 重置所有状态
@@ -276,112 +253,120 @@ const AdvertisementFormPage: React.FC = () => {
     };
   };
 
-  // 监听uploadUrls变化，设置待上传状态
-  useEffect(() => {
-    if (uploadUrls && fileList.length > 0 && !uploading) {
-      console.log('获取到上传URL，准备上传文件');
-      setReadyToUpload(true);
-    }
-  }, [uploadUrls, fileList, uploading]);
-
-  // 当readyToUpload变为true时执行上传
-  useEffect(() => {
-    let isMounted = true;
-
-    const performUpload = async () => {
-      if (!readyToUpload || !uploadUrls || fileList.length === 0) {
-        return;
-      }
-
-      // 重置ready状态，避免重复上传
-      setReadyToUpload(false);
-      setUploading(true);
-
-      try {
-        console.log('开始上传文件', {
-          uploadUrl: uploadUrls.uploadUrl,
-          filePath: uploadUrls.filePath,
-          fileName: fileList[0].name
-        });
-        
-        // 创建FormData用于上传
-        const file = fileList[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('filePath', uploadUrls.filePath);
-        formData.append('contentType', file.type);
-        
-        // 获取认证token
-        const token = getToken();
-        
-        // 发送上传请求，包含认证信息
-        const response = await fetch(uploadUrls.uploadUrl, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('上传失败，状态码: ' + response.status);
-        }
-        
-        // 解析响应
-        const result = await response.json();
-        console.log('上传结果:', result);
-        
-        if (result.code !== 200) {
-          throw new Error(result.message || '上传失败');
-        }
-        
-        // 上传成功后设置素材信息
-        const materialConfig = {
-          url: result.data.fileUrl,
-          filePath: result.data.filePath,
-          fileType: file.type,
-          fileName: file.name,
-          fileSize: file.size,
-        };
-        
-        if (currentUploadingField !== null) {
-          // 更新表单中对应字段的值
-          const displayConfig = form.getFieldValue('displayConfig') || [];
-          displayConfig[currentUploadingField] = {
-            ...displayConfig[currentUploadingField],
-            materialUrl: result.data.fileUrl
-          };
-          form.setFieldValue('displayConfig', [...displayConfig]);
-          setCurrentUploadingField(null);
-        } else {
-          setUploadedMaterial(materialConfig);
-        }
-        
-        message.success('上传成功');
-        setFileList([]);
-      } catch (error) {
-        // 确保在出错时重置状态
-        console.error('上传失败:', error);
-        message.error('上传过程中发生错误，请重试');
-        resetFileUploadState();
-        // 重置手动输入的视频URL（如果当前是视频且处于手动输入模式）
-        if (adType === 'popup_video' && isManualVideoUrl) {
-          setManualVideoUrl('');
-        }
-      } finally {
-        if (isMounted) {
-          setUploading(false);
-        }
-      }
-    };
-
-    performUpload();
+  // 直接处理文件上传
+  const handleDirectUpload = async (file: File, uploadInfo: any, fieldIndex: number | null) => {
+    setUploading(true);
     
-    // 清理函数
-    return () => {
-      isMounted = false;
-    };
-  }, [readyToUpload, uploadUrls, fileList, form, currentUploadingField, adType, isManualVideoUrl]);
+    try {
+      console.log('开始上传文件', {
+        uploadUrl: uploadInfo.uploadUrl,
+        filePath: uploadInfo.filePath,
+        fileName: file.name,
+        currentField: fieldIndex
+      });
+      
+      // 创建FormData用于上传
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('filePath', uploadInfo.filePath);
+      formData.append('contentType', file.type);
+      
+      // 获取认证token
+      const token = getToken();
+      
+      // 发送上传请求，包含认证信息
+      const response = await fetch(uploadInfo.uploadUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('上传失败，状态码: ' + response.status);
+      }
+      
+      // 解析响应
+      const result = await response.json();
+      console.log('上传结果:', result);
+      
+      if (result.code !== 200) {
+        throw new Error(result.message || '上传失败');
+      }
+      
+      // 上传成功后设置素材信息
+      const materialConfig = {
+        url: result.data.fileUrl,
+        filePath: result.data.filePath,
+        fileType: file.type,
+        fileName: file.name,
+        fileSize: file.size,
+      };
+      
+      if (fieldIndex !== null) {
+        console.log('更新多素材字段', fieldIndex, '的值为', result.data.fileUrl);
+        // 更新表单中对应字段的值
+        const displayConfig = form.getFieldValue('displayConfig') || [];
+        displayConfig[fieldIndex] = {
+          ...displayConfig[fieldIndex],
+          materialUrl: result.data.fileUrl
+        };
+        form.setFieldValue('displayConfig', [...displayConfig]);
+      } else {
+        setUploadedMaterial(materialConfig);
+      }
+      
+      message.success('上传成功');
+      setFileList([]);
+    } catch (error: any) {
+      // 确保在出错时重置状态
+      console.error('上传失败:', error);
+      message.error('上传过程中发生错误，请重试');
+      resetFileUploadState();
+    } finally {
+      setUploading(false);
+      setCurrentUploadingField(null);
+    }
+  };
+
+  // 处理单素材上传
+  const handleBeforeUpload = async (file: File) => {
+    try {
+      setFileList([file]);
+      setCurrentUploadingField(null);
+      
+      const fileName = file.name;
+      const contentType = file.type;
+      console.log('开始获取上传URL, 文件:', fileName, '类型:', contentType);
+      
+      // 清除之前的状态
+      dispatch(clearUploadUrls());
+      
+      // 获取上传URL
+      const result = await dispatch(getMaterialUploadUrl({ fileName, contentType }) as any);
+      
+      // 检查dispatch结果是否有错误
+      if (result.error) {
+        resetFileUploadState();
+        throw new Error(result.error.message || '获取上传URL失败');
+      }
+      
+      console.log('获取上传URL成功', result);
+      
+      // 直接执行上传，不依赖useEffect
+      if (result.payload) {
+        await handleDirectUpload(file, result.payload, null);
+      }
+      
+      return false; // 阻止自动上传
+    } catch (error: any) {
+      // 重置所有状态
+      resetFileUploadState();
+      message.error(`获取上传URL失败: ${error.message}`);
+      return false;
+    }
+  };
 
   // 处理表单提交
   const handleSubmit = async (values: AdvertisementFormData) => {
@@ -816,7 +801,7 @@ const AdvertisementFormPage: React.FC = () => {
               <Button type="primary" htmlType="submit" loading={loading}>
                 {isEdit ? '更新广告' : '创建广告'}
               </Button>
-              <Button onClick={() => navigate('/advertisements')}>取消</Button>
+              <Button onClick={() => navigate('/advertisements/list')}>取消</Button>
             </Space>
           </Form.Item>
         </Form>

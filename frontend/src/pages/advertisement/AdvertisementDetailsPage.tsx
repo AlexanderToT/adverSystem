@@ -125,7 +125,7 @@ const AdvertisementDetailsPage: React.FC = () => {
           <Space>
             <Button 
               icon={<ArrowLeftOutlined />} 
-              onClick={() => navigate('/advertisements')}
+              onClick={() => navigate('/advertisements/list')}
             >
               返回列表
             </Button>
