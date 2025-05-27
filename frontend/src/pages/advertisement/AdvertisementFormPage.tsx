@@ -412,7 +412,7 @@ const AdvertisementFormPage: React.FC = () => {
         await dispatch(createAdvertisement(formData) as any);
         message.success('广告创建成功');
       }
-      navigate('/advertisements');
+      navigate('/advertisements/list');
     } catch (error: any) {
       message.error(`提交失败: ${error.message}`);
     }
